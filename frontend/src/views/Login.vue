@@ -22,10 +22,24 @@
       </button>
     </div>
     <img class="illus right" :src="rightImg" alt="right" />
+
+    <!-- Inactive user modal -->
+    <div v-if="showInactive" class="modal">
+      <div class="modal-card">
+        <div class="modal-title">Akun belum aktif</div>
+        <div class="modal-body">
+          Akun Anda belum diaktifkan. Silakan hubungi admin via WhatsApp untuk aktivasi akun Anda.
+          <div class="contact"><a :href="waHref" target="_blank" rel="noopener" class="wa-btn">WhatsApp Admin</a></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="showInactive=false">Tutup</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import api from '../api/client'
 import { useAuthStore } from '../store/auth'
 import router from '../router'
@@ -37,16 +51,31 @@ const auth = useAuthStore()
 const logoImg = ref('/logo.svg')
 const leftImg = ref('/med-left.svg')
 const rightImg = ref('/med-right.svg')
+const showInactive = ref(false)
+const WA_NUMBER = '6285234727303'
+const waText = computed(() => `Hai Kak, Aku ${email.value || '-'} ingin melakukan aktivasi akun, terimakasih`)
+const waHref = computed(() => `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waText.value)}`)
 
 const submit = async () => {
-  const params = new URLSearchParams()
-  params.append('username', email.value)
-  params.append('password', password.value)
-  const { data } = await api.post('/auth/login', params)
-  // fetch me
-  const me = await api.get('/users/me', { headers: { Authorization: `Bearer ${data.access_token}` }})
-  auth.setAuth(data.access_token, me.data)
-  router.push('/')
+  try {
+    const params = new URLSearchParams()
+    params.append('username', email.value)
+    params.append('password', password.value)
+    const { data } = await api.post('/auth/login', params)
+    // fetch me (this will fail with 400 if user inactive)
+    const me = await api.get('/users/me', { headers: { Authorization: `Bearer ${data.access_token}` }})
+    auth.setAuth(data.access_token, me.data)
+    router.push('/')
+  } catch (e) {
+    const msg = e?.response?.data?.detail || ''
+    if (e?.response?.status === 400 && String(msg).toLowerCase().includes('inactive')){
+      showInactive.value = true
+    } else {
+      alert('Login gagal. Periksa email/password dan coba lagi.')
+      // Optional: console for debugging
+      console.error(e)
+    }
+  }
 }
 
 // Google Identity Services
@@ -114,4 +143,13 @@ async function googleSignIn(){
 @media (max-width: 480px){
   .auth-wrap{ padding: 0 12px; }
 }
+
+/* modal */
+.modal{ position:fixed; inset:0; background:rgba(2,6,23,0.5); display:flex; align-items:center; justify-content:center; z-index: 1000; }
+.modal-card{ width: min(92vw, 520px); background:#fff; border-radius:16px; border:1px solid #e2e8f0; box-shadow: 0 20px 60px rgba(2,6,23,.25), 0 2px 12px rgba(2,6,23,.12); padding:16px; animation: pop .18s ease-out; }
+.modal-title{ font-weight:800; color:#0f172a; margin-bottom:6px; }
+.modal-body{ color:#475569; line-height:1.6; }
+.modal-body .contact{ margin-top:8px; color:#334155; font-weight:600; }
+.modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+@keyframes pop{ from{ transform: scale(.96); opacity:0 } to{ transform: scale(1); opacity:1 } }
 </style>

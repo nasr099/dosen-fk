@@ -64,6 +64,12 @@
           <div class="row"><span class="label">Name</span><span class="value">{{ auth.user?.full_name || '-' }}</span></div>
           <div class="row"><span class="label">Phone</span><span class="value">{{ auth.user?.phone || '-' }}</span></div>
           <div class="row"><span class="label">Email</span><span class="value">{{ auth.user?.email || '-' }}</span></div>
+          <div class="row"><span class="label">Status</span>
+            <span class="value">
+              <span :class="['badge', auth.user?.is_active ? 'ok' : 'off']">{{ auth.user?.is_active ? 'Active' : 'Inactive' }}</span>
+            </span>
+          </div>
+          <div class="row"><span class="label">Active Until</span><span class="value">{{ expiryText }}</span></div>
         </div>
       </div>
 
@@ -116,6 +122,16 @@ const startDate = ref('');
 const endDate = ref('');
 const sortBy = ref('date'); // date | score | set
 const sortDir = ref('desc'); // asc | desc
+
+const expiryText = computed(() => {
+  const raw = auth.user?.active_until
+  if (!raw) return '-'
+  const d = new Date(raw)
+  if (isNaN(d.getTime())) return String(raw)
+  const dateStr = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
+  const now = new Date()
+  return d < now ? `${dateStr} (expired)` : dateStr
+})
 
 const applyFilters = () => {
   let tempHistory = [...originalHistory.value];
@@ -246,6 +262,9 @@ function formatDate(dt) {
 .profile-info .row{ display:flex; justify-content:center; gap: 10px; }
 .profile-info .label{ font-weight: 700; color:#0f172a; }
 .profile-info .value{ color:#334155; }
+.badge{ padding:3px 10px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.2px; }
+.badge.ok{ background:linear-gradient(135deg,#34d399,#10b981); color:#064e3b; border:0; box-shadow:0 0 0 1px rgba(16,185,129,.15) inset, 0 6px 16px rgba(16,185,129,.22); }
+.badge.off{ background:linear-gradient(135deg,#e2e8f0,#cbd5e1); color:#0f172a; border:0; box-shadow:0 0 0 1px rgba(148,163,184,.25) inset, 0 2px 8px rgba(15,23,42,.06); }
 
 /* Responsive */
 @media (max-width: 900px) {

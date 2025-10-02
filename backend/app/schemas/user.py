@@ -19,6 +19,7 @@ class UserInDBBase(UserBase):
     is_admin: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
+    active_until: Optional[datetime] = None
 
     class Config:
         from_attributes = True

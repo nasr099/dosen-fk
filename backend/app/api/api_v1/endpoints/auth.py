@@ -20,7 +20,8 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         full_name=user_in.full_name,
         phone=getattr(user_in, 'phone', None),
         hashed_password=get_password_hash(user_in.password),
-        is_active=True,
+        is_active=False,
+        active_until=None,
         is_admin=False,
     )
     db.add(user)

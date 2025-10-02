@@ -1,5 +1,6 @@
 from typing import Generator
 from fastapi import Depends, HTTPException, status
+from datetime import datetime, timezone
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
@@ -31,7 +32,19 @@ def get_current_user(
 
 def get_current_active_user(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> User:
+    # Auto-deactivate if expired
+    if getattr(current_user, 'active_until', None):
+        now = datetime.now(timezone.utc)
+        try:
+            expires = current_user.active_until
+            if expires and expires < now:
+                current_user.is_active = False
+                db.add(current_user)
+                db.commit()
+        except Exception:
+            pass
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
