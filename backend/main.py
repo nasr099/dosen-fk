@@ -13,10 +13,17 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# Set up CORS
+# Set up CORS from settings (supports '*' or comma-separated list)
+origins = settings.CORS_ORIGINS
+if isinstance(origins, str):
+    if origins.strip() == "*":
+        origins = ["*"]
+    else:
+        origins = [o.strip() for o in origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],  # Vue.js dev servers
+    allow_origins=origins or ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

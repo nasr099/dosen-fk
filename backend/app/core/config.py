@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List, Union
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "postgresql://username:password@localhost/medical_exam_db"
+
+    # CORS
+    # Comma-separated list or * for all
+    CORS_ORIGINS: Union[str, List[str]] = "*"
     
     # Email settings
     EMAIL_HOST: Optional[str] = None
