@@ -197,6 +197,23 @@ function resolveImg(src){
   return src
 }
 
+// Very small sanitizer for rendering rich HTML from our editor
+function renderHTML(html){
+  const ALLOWED_TAGS = new Set(['P','B','I','U','S','STRONG','EM','UL','OL','LI','H1','H2','H3','H4','BLOCKQUOTE','A','IMG','CODE','PRE','SUB','SUP','HR','BR','DIV','SPAN'])
+  const ALLOWED_ATTR = new Set(['href','src','alt','target','rel','style'])
+  const div = document.createElement('div')
+  div.innerHTML = String(html || '')
+  ;[...div.querySelectorAll('script,style')].forEach(n => n.remove())
+  ;(function clean(node){
+    ;[...node.children].forEach(ch => {
+      if (!ALLOWED_TAGS.has(ch.tagName)) { ch.replaceWith(...ch.childNodes); return }
+      ;[...ch.attributes].forEach(attr => { if (!ALLOWED_ATTR.has(attr.name) || attr.name.startsWith('on')) ch.removeAttribute(attr.name) })
+      clean(ch)
+    })
+  })(div)
+  return div.innerHTML
+}
+
 function openLightbox(url){ lightboxUrl.value = url }
 function closeLightbox(){ lightboxUrl.value = '' }
 

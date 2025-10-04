@@ -60,6 +60,8 @@ const pickFirst = (obj, keys) => {
     const v = obj?.[k]
     if (v !== undefined && v !== null && String(v).trim() !== '') return v
   }
+  return null
+}
 
 // Very small sanitizer: allow a limited set of tags/attributes used by our editor
 function renderHTML(html){
@@ -69,15 +71,13 @@ function renderHTML(html){
   div.innerHTML = String(html || '')
   ;[...div.querySelectorAll('script,style')].forEach(n => n.remove())
   ;(function clean(node){
-    [...node.children].forEach(ch => {
+    ;[...node.children].forEach(ch => {
       if (!ALLOWED_TAGS.has(ch.tagName)) { ch.replaceWith(...ch.childNodes); return }
-      [...ch.attributes].forEach(attr => { if (!ALLOWED_ATTR.has(attr.name) || attr.name.startsWith('on')) ch.removeAttribute(attr.name) })
+      ;[...ch.attributes].forEach(attr => { if (!ALLOWED_ATTR.has(attr.name) || attr.name.startsWith('on')) ch.removeAttribute(attr.name) })
       clean(ch)
     })
   })(div)
   return div.innerHTML
-}
-  return null
 }
 
 function resolveImg(src){
