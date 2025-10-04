@@ -1,7 +1,13 @@
 <template>
   <div class="profile-layout">
+    <!-- Mobile filter toggle -->
+    <div class="mobile-filter-bar">
+      <button class="btn small" @click="mobileFiltersOpen = !mobileFiltersOpen">
+        {{ mobileFiltersOpen ? 'Hide Filters' : 'Show Filters' }}
+      </button>
+    </div>
     <!-- Left Sidebar for Filters -->
-    <aside class="filter-sidebar card">
+    <aside class="filter-sidebar card" :class="{ open: mobileFiltersOpen }">
       <h3>Filter History</h3>
       <form @submit.prevent="applyFilters">
         <div class="form-group">
@@ -43,8 +49,8 @@
           </div>
         </div>
         <div class="filter-actions">
-          <button type="submit" class="btn">Apply</button>
-          <button type="button" class="btn secondary" @click="resetFilters">Reset</button>
+          <button type="submit" class="btn" @click="mobileFiltersOpen = false">Apply</button>
+          <button type="button" class="btn secondary" @click="() => { resetFilters(); mobileFiltersOpen = false }">Reset</button>
         </div>
       </form>
     </aside>
@@ -80,21 +86,21 @@
           <table class="history-table">
             <thead>
               <tr>
-                <th>Completed</th>
+                <th class="completed-col">Completed</th>
                 <th>Set</th>
                 <th>Score</th>
                 <th>Correct</th>
-                <th></th>
+                <th class="action-col"></th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="e in filteredHistory" :key="e.id">
-                <td>{{ formatDate(e.completed_at || e.started_at) }}</td>
+                <td class="completed-col">{{ formatDate(e.completed_at || e.started_at) }}</td>
                 <td>{{ e.set_title || '-' }}</td>
                 <td>{{ Math.round(e.score_percentage || 0) }}/100</td>
                 <td>{{ e.correct_answers }}/{{ e.total_questions }}</td>
-                <td style="text-align: right;">
-                  <router-link :to="{ name: 'result', params: { sessionId: e.id } }"><button class="btn">View Result</button></router-link>
+                <td class="desktop-action" style="text-align: right;">
+                  <router-link :to="{ name: 'result', params: { sessionId: e.id } }"><button class="btn small">View Result</button></router-link>
                 </td>
               </tr>
             </tbody>
@@ -114,6 +120,7 @@ const auth = useAuthStore();
 const originalHistory = ref([]);
 const filteredHistory = ref([]);
 const allSets = ref([]);
+const mobileFiltersOpen = ref(false);
 
 // Filter state
 const searchQuery = ref('');
@@ -253,6 +260,14 @@ function formatDate(dt) {
   overflow-x: hidden; /* prevent accidental horizontal scroll */
 }
 
+.profile-layout > * { min-width: 0; }
+.main-content{ min-width: 0; }
+.filter-sidebar{ min-width: 0; }
+
+.mobile-filter-bar { display:none; margin-bottom: 8px; }
+.btn.small{ padding:6px 10px; font-size:12px; }
+.btn.full{ width:100%; }
+
 .filter-sidebar { overflow-x: hidden; padding: 8px; max-width: 100%; box-sizing: border-box; }
 .filter-sidebar * { min-width: 0; }
 .filter-sidebar h3 {
@@ -278,9 +293,13 @@ function formatDate(dt) {
 }
 
 .table-wrap { overflow: auto; }
-.history-table { width: 100%; border-collapse: collapse; }
-.history-table th, .history-table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+.history-table { width: 100%; border-collapse: collapse; table-layout: auto; }
+.history-table th, .history-table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
 .history-table th { background: #f8fafc; font-weight: 700; color: #0f172a; }
+.history-table td, .history-table th{ word-break: break-word; }
+.history-table .action-col{ width: 120px; }
+.mobile-action{ display:none; margin-top:8px; }
+.mobile-action-row{ display:none; }
 
 /* Profile card styles */
 .profile-card{ display:flex; flex-direction:column; align-items:center; text-align:center; padding: 28px 20px; gap: 14px; }
@@ -299,10 +318,25 @@ function formatDate(dt) {
   .profile-layout {
     grid-template-columns: 1fr; /* Stack columns */
   }
+  .mobile-filter-bar { display:flex; }
+  .filter-sidebar { display:none; }
+  .filter-sidebar.open { display:block; }
+  .filter-actions { display:grid; grid-template-columns: 1fr; gap:10px; }
+  .filter-actions .btn { width:100%; }
+  .card { padding: 12px; }
+  .profile-card{ padding: 20px 14px; }
+  /* Hide Completed column to save space */
+  .history-table thead th.completed-col{ display:none; }
+  .history-table tbody td.completed-col{ display:none; }
+  /* Keep action button visible inline */
+  .desktop-action{ display:table-cell; }
+  .history-table .action-col{ width:auto; }
+  .history-table td.desktop-action .btn{ width:100%; }
 }
 
 /* Stack row fields on very small screens to avoid overflow */
 @media (max-width: 640px) {
   .form-row { grid-template-columns: 1fr; }
+  .history-table th, .history-table td { padding: 8px 10px; }
 }
 </style>
