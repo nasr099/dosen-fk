@@ -84,15 +84,31 @@
         </div>
       </div>
     </div>
+
+    <!-- Re-login required modal -->
+    <div v-if="showAuthModal" class="modal-overlay" @click.self="closeAuthModal">
+      <div class="modal">
+        <div class="modal-head">Session Expired</div>
+        <div class="modal-body">
+          <p>Your session has expired or is invalid. Please login again to submit your answers.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary" @click="closeAuthModal">Cancel</button>
+          <button class="btn" @click="goLogin">Login to Continue</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <script setup>
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import api from '../api/client'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../store/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const categoryId = Number(route.params.categoryId)
 const setId = route.query.setId ? Number(route.query.setId) : null
 
@@ -323,6 +339,19 @@ const showConfirm = ref(false)
 function openConfirm(){ showConfirm.value = true }
 function closeConfirm(){ showConfirm.value = false }
 function confirmSubmit(){ showConfirm.value = false; submit() }
+const showAuthModal = ref(false)
+function closeAuthModal(){ showAuthModal.value = false }
+function goLogin(){
+  try {
+    // Save pending submit payload for one-time retry after login
+    if (pendingSubmitCache.value) {
+      sessionStorage.setItem('pending_submit', JSON.stringify(pendingSubmitCache.value))
+    }
+  } catch {}
+  const next = encodeURIComponent(window.location.pathname + window.location.search)
+  router.push({ name: 'login', query: { next } })
+}
+const pendingSubmitCache = ref(null)
 async function submit(){
   if (isSubmitting.value) return
   isSubmitting.value = true
@@ -338,12 +367,47 @@ async function submit(){
     time_taken_minutes: Number(elapsed.toFixed(2)),
   }
   try{
-    const { data } = await api.post('/exams/submit', payload)
+    // allow this call to handle auth errors itself
+    const { data } = await api.post('/exams/submit', payload, { skipAuthRedirect: true })
+    sessionStorage.removeItem('pending_submit')
     router.push({ name: 'result', params: { sessionId: data.exam_session_id } })
+  } catch (e) {
+    const status = e?.response?.status
+    if (status === 401 || status === 403){
+      // cache payload for retry after login
+      pendingSubmitCache.value = payload
+      try { sessionStorage.setItem('pending_submit', JSON.stringify(payload)) } catch {}
+      showAuthModal.value = true
+      return
+    }
+    console.error('Submit failed', e)
   } finally {
     isSubmitting.value = false
   }
 }
+
+// On return from login, if we have a cached submit and a valid token, retry once
+onMounted(async () => {
+  try {
+    const cached = sessionStorage.getItem('pending_submit')
+    if (cached && auth?.token){
+      const parsed = JSON.parse(cached)
+      // basic validation
+      if (parsed && parsed.exam_session_id){
+        try {
+          const { data } = await api.post('/exams/submit', parsed, { skipAuthRedirect: true })
+          sessionStorage.removeItem('pending_submit')
+          router.push({ name: 'result', params: { sessionId: data.exam_session_id } })
+          return
+        } catch (e) {
+          // if it still fails auth, show modal again
+          const status = e?.response?.status
+          if (status === 401 || status === 403){ showAuthModal.value = true }
+        }
+      }
+    }
+  } catch {}
+})
 </script>
 <style scoped>
 .exam-header{ display:flex; justify-content:space-between; align-items:center; }

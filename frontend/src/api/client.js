@@ -15,4 +15,26 @@ api.interceptors.request.use(config => {
   return config
 })
 
+// Auto-handle expired/invalid tokens
+api.interceptors.response.use(
+  res => res,
+  err => {
+    try {
+      const status = err?.response?.status
+      const cfg = err?.config || {}
+      // Allow callers to handle themselves
+      if ((status === 401 || status === 403) && !cfg.skipAuthRedirect) {
+        const auth = useAuthStore()
+        // Clear local auth and send user to login, preserving return path
+        if (auth?.logout) auth.logout()
+        const next = encodeURIComponent(window.location.pathname + window.location.search)
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.href = `/login?next=${next}`
+        }
+      }
+    } catch {}
+    return Promise.reject(err)
+  }
+)
+
 export default api
