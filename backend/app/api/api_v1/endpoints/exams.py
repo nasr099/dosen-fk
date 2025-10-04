@@ -99,14 +99,20 @@ def submit_exam(
         ).all()
     }
 
-    # Update answers
+    # Update answers (robust even if placeholder rows were removed during a set edit)
     for a in submission.answers:
         ans = db.query(ExamAnswerModel).filter(
             ExamAnswerModel.exam_session_id == exam.id,
             ExamAnswerModel.question_id == a.question_id,
         ).first()
         if not ans:
-            continue
+            # Placeholder row might have been deleted by an admin set update.
+            # Recreate it so the user's submission is still recorded.
+            ans = ExamAnswerModel(
+                exam_session_id=exam.id,
+                question_id=a.question_id,
+            )
+            db.add(ans)
         q = question_map.get(a.question_id)
         is_correct = (a.selected_answer or "").upper() == (q.correct_answer or "").upper()
         ans.selected_answer = (a.selected_answer or None)

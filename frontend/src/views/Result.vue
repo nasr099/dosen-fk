@@ -14,8 +14,11 @@
 
     <h3 class="answers-title">Answers</h3>
     <div v-if="(result.answers||[]).length === 0" class="muted">No answers recorded.</div>
-    <div v-for="a in result.answers" :key="a.question_id" class="card answer-card">
-      <div style="font-weight:700; margin-bottom:6px;">Question:</div>
+    <div v-for="(a, i) in result.answers" :key="a.question_id || i" class="card answer-card">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        <div class="qnum">Q{{ i + 1 }}</div>
+        <div style="font-weight:700;">Question:</div>
+      </div>
       <div class="qwrap">
         <div v-if="qDetail(a).text" class="qtext">{{ qDetail(a).text }}</div>
         <img v-if="qDetail(a).img" :src="resolveImg(qDetail(a).img)" alt="Question" class="qimg" />
@@ -129,6 +132,7 @@ onMounted(async () => {
 
 .answers-title{ margin: 18px 0 10px; }
 .answer-card{ margin-top:18px; padding:16px; }
+.qnum{ background:#111827; color:#fff; border-radius:6px; padding:2px 8px; font-weight:800; font-size:12px; letter-spacing:.5px; }
 .explain{ margin-top:10px; }
 .row{ display:flex; gap:24px; margin-top:8px; }
 .col{ flex:1; min-width:0; }
