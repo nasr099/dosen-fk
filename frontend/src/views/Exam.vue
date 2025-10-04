@@ -4,6 +4,11 @@
       <h2>{{ setTitle || 'Exam' }}</h2>
       <div class="time"><strong>Time Left:</strong> {{ minutes }}:{{ seconds.toString().padStart(2,'0') }}</div>
     </div>
+    <div class="guard-bar">
+      <span class="dot" :class="{ ok: !inViolation, warn: inViolation }"></span>
+      <strong>Focus mode:</strong>
+      Keep the exam in fullscreen and this tab active. Violations {{ violations }} / {{ VIOLATION_LIMIT }}.
+    </div>
     <div class="exam-body">
       <div class="left">
         <div v-for="(q, idx) in questions" :key="q.id" v-show="idx === currentIndex" class="question-card">
@@ -79,7 +84,7 @@
   </div>
 </template>
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import api from '../api/client'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -104,6 +109,65 @@ const currentQuestionId = computed(() => questions.value[currentIndex.value]?.id
 const answeredCount = computed(() => Object.values(answers.value).filter(Boolean).length)
 const totalCount = computed(() => questions.value.length || totalQuestions.value)
 const setTitle = ref('')
+
+// --- Anti-cheat state ---
+const violations = ref(0)
+const VIOLATION_LIMIT = 3
+const inViolation = computed(()=> violations.value > 0)
+let unsubs = []
+let fullscreenRequested = false
+
+function addViolation(reason){
+  violations.value += 1
+  // Optional: user feedback
+  try { console.warn('Violation:', reason) } catch {}
+  if (violations.value >= VIOLATION_LIMIT){
+    // Auto-submit on limit
+  }
+}
+
+async function requestFullscreen(){
+  const el = document.documentElement
+  if (!document.fullscreenElement && el.requestFullscreen){
+    fullscreenRequested = true
+    try { await el.requestFullscreen() } catch {}
+  }
+}
+
+function ensureFullscreen(){
+  if (!document.fullscreenElement){
+    requestFullscreen()
+  }
+}
+
+function onFullscreenChange(){
+  if (!document.fullscreenElement && fullscreenRequested){
+    addViolation('exit-fullscreen')
+    // attempt to re-enter
+    requestFullscreen()
+  }
+}
+
+function onVisibility(){
+  if (document.hidden){ addViolation('tab-hidden') }
+}
+
+function onBlur(){ addViolation('window-blur') }
+function blockContextMenu(e){ e.preventDefault() }
+function blockClipboard(e){ e.preventDefault() }
+function onKeydown(e){
+  const k = e.key.toLowerCase()
+  const meta = e.ctrlKey || e.metaKey
+  // Block common shortcuts: copy/print/save/find/devtools
+  if (meta && ['c','p','s','f'].includes(k)) { e.preventDefault(); addViolation('shortcut-'+k) }
+  // F12
+  if (k === 'f12'){ e.preventDefault(); addViolation('f12') }
+}
+
+function onBeforeUnload(e){
+  e.preventDefault()
+  e.returnValue = ''
+}
 
 function parseRich(val){
   // Accept plain text or JSON string: { text: string, img: string }
@@ -133,9 +197,9 @@ function resolveImg(src){
 function openLightbox(url){ lightboxUrl.value = url }
 function closeLightbox(){ lightboxUrl.value = '' }
 
-function prev(){ if (currentIndex.value > 0) currentIndex.value-- }
-function next(){ if (currentIndex.value < questions.value.length-1) currentIndex.value++ }
-function go(i){ currentIndex.value = i }
+function prev(){ if (currentIndex.value > 0){ currentIndex.value--; ensureFullscreen() } }
+function next(){ if (currentIndex.value < questions.value.length-1){ currentIndex.value++; ensureFullscreen() } }
+function go(i){ currentIndex.value = i; ensureFullscreen() }
 function toggleFlag(qid){
   flagged.value[qid] = !flagged.value[qid]
 }
@@ -189,6 +253,8 @@ onMounted(async () => {
     }, 1000)
 
     loaded.value = true
+    // Activate focus guard after content is ready
+    setupGuards()
   } catch (e) {
     const status = e?.response?.status
     if (status === 401 || status === 403) {
@@ -197,6 +263,38 @@ onMounted(async () => {
       return
     }
     console.error('Failed to start exam:', e)
+  }
+})
+
+function setupGuards(){
+  // require fullscreen to start
+  requestFullscreen()
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('blur', onBlur)
+  window.addEventListener('beforeunload', onBeforeUnload)
+  document.addEventListener('contextmenu', blockContextMenu)
+  document.addEventListener('copy', blockClipboard)
+  document.addEventListener('cut', blockClipboard)
+  document.addEventListener('paste', blockClipboard)
+  document.addEventListener('keydown', onKeydown, { capture: true })
+  unsubs = [
+    () => document.removeEventListener('fullscreenchange', onFullscreenChange),
+    () => document.removeEventListener('visibilitychange', onVisibility),
+    () => window.removeEventListener('blur', onBlur),
+    () => window.removeEventListener('beforeunload', onBeforeUnload),
+    () => document.removeEventListener('contextmenu', blockContextMenu),
+    () => document.removeEventListener('copy', blockClipboard),
+    () => document.removeEventListener('cut', blockClipboard),
+    () => document.removeEventListener('paste', blockClipboard),
+    () => document.removeEventListener('keydown', onKeydown, { capture: true }),
+  ]
+}
+
+onUnmounted(()=>{
+  try { unsubs.forEach(fn=>fn()) } catch {}
+  if (document.fullscreenElement){
+    try { document.exitFullscreen() } catch {}
   }
 })
 
@@ -229,6 +327,10 @@ async function submit(){
 </script>
 <style scoped>
 .exam-header{ display:flex; justify-content:space-between; align-items:center; }
+.guard-bar{ margin:10px 0 6px; padding:8px 10px; border-radius:10px; background:#fff7ed; border:1px solid #fed7aa; color:#7c2d12; display:flex; align-items:center; gap:8px; font-size:14px; }
+.guard-bar .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; background:#f59e0b; }
+.guard-bar .dot.ok{ background:#10b981; }
+.guard-bar .dot.warn{ background:#f59e0b; }
 .exam-body{ display:grid; grid-template-columns: 2fr 0.9fr; gap:16px; align-items:start; }
 .left{ display:flex; flex-direction:column; gap:12px; }
 .progress-wrap{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px; }

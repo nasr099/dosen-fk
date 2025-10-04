@@ -212,7 +212,35 @@ onMounted(async () => {
 });
 
 function formatDate(dt) {
-  try { return new Date(dt).toLocaleString(); } catch { return dt; }
+  try {
+    if (!dt) return '-'
+    let s = String(dt)
+    // Detect if timestamp already has timezone (Z or +HH:MM/-HH:MM)
+    const hasTZ = /Z|[+-]\d{2}:?\d{2}$/.test(s)
+    // If TZ is present, parse as-is. If not, treat as LOCAL time (do NOT append Z)
+    let d = hasTZ
+      ? new Date(s)
+      : new Date(s.includes('T') ? s : s.replace(' ', 'T'))
+    // If parsing failed, try normalizing common UI strings like '4/10/2025, 04.18.05 AM'
+    if (isNaN(d.getTime())){
+      // Replace time separators '.' with ':'
+      const parts = s.split(',')
+      if (parts.length >= 2){
+        const datePart = parts[0].trim()
+        let timePart = parts.slice(1).join(',').trim() // handle possible commas
+        timePart = timePart.replace(/\./g, ':')
+        s = `${datePart} ${timePart}`
+      }
+      d = new Date(s)
+    }
+    if (isNaN(d.getTime())) return s
+    return d.toLocaleString('en-GB', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false
+    })
+  } catch { return String(dt) }
 }
 </script>
 
