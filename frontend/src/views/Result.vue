@@ -41,7 +41,11 @@
         </div>
       </div>
 
-      <div class="explain"><strong>Explanation:</strong> <span v-if="a.explanation" v-html="renderHTML(a.explanation)"></span><span v-else>-</span></div>
+      <div class="explain">
+        <div class="explain-label"><strong>Explanation:</strong></div>
+        <div v-if="a.explanation" class="explain-box" v-html="renderHTML(a.explanation)"></div>
+        <div v-else class="explain-box empty">-</div>
+      </div>
     </div>
   </div>
 </template>
@@ -150,7 +154,7 @@ onMounted(async () => {
 .answers-title{ margin: 18px 0 10px; }
 .answer-card{ margin-top:18px; padding:16px; }
 .qnum{ background:#111827; color:#fff; border-radius:6px; padding:2px 8px; font-weight:800; font-size:12px; letter-spacing:.5px; }
-.explain{ margin-top:10px; }
+.explain{ margin-top:12px; }
 .row{ display:flex; gap:24px; margin-top:8px; }
 .col{ flex:1; min-width:0; }
 .ans-detail{ margin-top:8px; }
@@ -160,6 +164,10 @@ onMounted(async () => {
 .qtext{ white-space:pre-line; line-height:1.85; letter-spacing:0.1px; }
 .explain{ line-height:1.75; }
 .qwrap{ display:flex; flex-direction:column; gap:12px; }
+.explain-label{ margin-bottom:6px; color:#0f172a; }
+.explain-box{ background:#f1f5f9; border:1px solid #e2e8f0; border-radius:10px; padding:12px; overflow:auto; }
+.explain-box :where(p,ul,ol,li,h1,h2,h3,h4,blockquote,pre,code){ margin: 0 0 10px 0; }
+.explain-box.empty{ color:#64748b; font-style:italic; }
 .qimg{ max-width:100%; width:auto; max-height:300px; height:auto; object-fit:contain; border-radius:8px; border:1px solid #e5e7eb; background:#fff; }
 @media (max-width: 600px){
   .row{ gap:12px; }
