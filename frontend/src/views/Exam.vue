@@ -37,10 +37,7 @@
                   @click="openLightbox(resolveImg(parseOption(q, opt).img))"
                 />
               </span>
-            </label>
           </div>
-        </div>
-
         <div class="nav-row">
           <button class="btn secondary" :disabled="currentIndex===0" @click="prev">‹ Sebelumnya</button>
           <button class="btn warn" @click="toggleFlag(currentQuestionId)">
@@ -133,15 +130,16 @@ const setTitle = ref('')
 const violations = ref(0)
 const VIOLATION_LIMIT = 3
 const inViolation = computed(()=> violations.value > 0)
+const endedByViolation = ref(false)
 let unsubs = []
 let fullscreenRequested = false
 
 function addViolation(reason){
-  violations.value += 1
-  // Optional: user feedback
-  try { console.warn('Violation:', reason) } catch {}
+  if (endedByViolation.value) return
+  violations.value = Math.min(VIOLATION_LIMIT, violations.value + 1)
+  try { console.warn('Violation:', reason, violations.value, '/', VIOLATION_LIMIT) } catch {}
   if (violations.value >= VIOLATION_LIMIT){
-    // Auto-submit on limit
+    endForViolation()
   }
 }
 
