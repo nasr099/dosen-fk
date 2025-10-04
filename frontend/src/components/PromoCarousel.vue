@@ -39,7 +39,10 @@ function next(){ index.value = (index.value + 1) % (promos.value.length || 1) }
 function prev(){ index.value = (index.value - 1 + (promos.value.length || 1)) % (promos.value.length || 1) }
 function go(i){ index.value = i; start() }
 function bgStyle(url){
-  return { backgroundImage: url ? `url(${url})` : 'none' }
+  if (!url) return { backgroundImage: 'none' }
+  // Ensure special characters (spaces, brackets) are encoded for CSS url()
+  const safe = encodeURI(String(url))
+  return { backgroundImage: `url("${safe}")` }
 }
 </script>
 <style scoped>
