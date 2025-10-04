@@ -37,7 +37,9 @@
                   @click="openLightbox(resolveImg(parseOption(q, opt).img))"
                 />
               </span>
+            </label>
           </div>
+        </div>
         <div class="nav-row">
           <button class="btn secondary" :disabled="currentIndex===0" @click="prev">‹ Sebelumnya</button>
           <button class="btn warn" @click="toggleFlag(currentQuestionId)">
