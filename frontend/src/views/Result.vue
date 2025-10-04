@@ -167,6 +167,7 @@ onMounted(async () => {
 .explain-label{ margin-bottom:6px; color:#0f172a; }
 .explain-box{ background:#f1f5f9; border:1px solid #e2e8f0; border-radius:10px; padding:12px; overflow:auto; }
 .explain-box :where(p,ul,ol,li,h1,h2,h3,h4,blockquote,pre,code){ margin: 0 0 10px 0; }
+.explain-box :deep(img){ max-width:100%; width:auto; max-height:160px; height:auto; object-fit:contain; border-radius:8px; border:1px solid #e5e7eb; background:#fff; }
 .explain-box.empty{ color:#64748b; font-style:italic; }
 .qimg{ max-width:100%; width:auto; max-height:300px; height:auto; object-fit:contain; border-radius:8px; border:1px solid #e5e7eb; background:#fff; }
 @media (max-width: 600px){
