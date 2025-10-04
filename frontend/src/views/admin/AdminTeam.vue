@@ -8,10 +8,7 @@
       <input v-model="form.role" class="input" placeholder="Role" required />
       <textarea v-model="form.headline" class="input" placeholder="Headline (supports HTML)"></textarea>
       <textarea v-model="form.quote" class="input" placeholder="Quote (supports HTML)"></textarea>
-      <div class="upload-row">
-        <input v-model="form.photo_url" class="input" placeholder="Photo URL or /uploads/..." />
-        <input type="file" @change="onUpload($event, form)" />
-      </div>
+      <CdnUploader v-model="form.photo_url" />
       <input v-model="form.linkedin" class="input" placeholder="LinkedIn URL" />
       <input v-model="form.twitter" class="input" placeholder="Twitter/X URL" />
       <input v-model="form.website" class="input" placeholder="Website" />
@@ -59,10 +56,7 @@
           <input v-model="editForm.role" class="input" placeholder="Role" required />
           <textarea v-model="editForm.headline" class="input" placeholder="Headline (supports HTML)"></textarea>
           <textarea v-model="editForm.quote" class="input" placeholder="Quote (supports HTML)"></textarea>
-          <div class="upload-row">
-            <input v-model="editForm.photo_url" class="input" placeholder="Photo URL or /uploads/..." />
-            <input type="file" @change="onUpload($event, editForm)" />
-          </div>
+          <CdnUploader v-model="editForm.photo_url" />
           <input v-model="editForm.linkedin" class="input" placeholder="LinkedIn URL" />
           <input v-model="editForm.twitter" class="input" placeholder="Twitter/X URL" />
           <input v-model="editForm.website" class="input" placeholder="Website" />
@@ -79,6 +73,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../../api/client'
+import CdnUploader from '../../components/CdnUploader.vue'
 
 const members = ref([])
 const form = ref({ name:'', role:'', headline:'', quote:'', photo_url:'', linkedin:'', twitter:'', website:'', is_visible:true })
@@ -129,17 +124,7 @@ async function toggleVisible(m){
   m.is_visible = data.is_visible
 }
 
-async function onUpload(ev, target){
-  const file = ev.target.files?.[0]
-  if (!file) return
-  const fd = new FormData()
-  fd.append('file', file)
-  const { data } = await api.post('/files/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-  // backend returns absolute url; store path part for consistency
-  const url = data.url
-  const u = new URL(url)
-  target.photo_url = `${u.pathname}`
-}
+// File upload handled by CdnUploader
 
 function resolveImg(src){
   if (!src) return ''

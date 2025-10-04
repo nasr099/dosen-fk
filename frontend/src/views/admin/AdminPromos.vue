@@ -4,14 +4,7 @@
     <form @submit.prevent="add">
       <input v-model="form.title" class="input" placeholder="Title" required />
       <input v-model="form.description" class="input" placeholder="Description" />
-      <div class="image-row">
-        <input v-model="form.image_url" class="input" placeholder="Image URL" />
-        <label class="btn secondary" style="white-space:nowrap;">
-          Upload
-          <input type="file" accept="image/*" style="display:none;" @change="onBannerFileChange" />
-        </label>
-      </div>
-      <img v-if="form.image_url" :src="form.image_url" alt="preview" style="max-width:280px; border-radius:8px; margin:6px 0;" />
+      <CdnUploader v-model="form.image_url" />
       <input v-model="form.link_url" class="input" placeholder="Link URL" />
       <input v-model.number="form.display_order" class="input" placeholder="Display Order" />
       <label><input type="checkbox" v-model="form.is_active" /> Active</label>
@@ -29,6 +22,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import api from '../../api/client'
+import CdnUploader from '../../components/CdnUploader.vue'
 const promos = ref([])
 const form = ref({ title:'', description:'', image_url:'', link_url:'', display_order:0, is_active:true })
 
@@ -50,14 +44,7 @@ async function remove(id){
   await load()
 }
 
-async function onBannerFileChange(evt){
-  const file = evt.target.files && evt.target.files[0]
-  if (!file) return
-  const fd = new FormData()
-  fd.append('file', file)
-  const { data } = await api.post('/files/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-  form.value.image_url = data.url
-}
+// file upload handled by CdnUploader
 </script>
 
 <style scoped>

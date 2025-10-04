@@ -26,6 +26,7 @@ from app.api.deps import get_current_active_user
 from app.db.base import get_db
 from app.db.models import ExamSession as ExamSessionModel, ExamAnswer as ExamAnswerModel, Question as QuestionModel, QuestionSet as QuestionSetModel
 from app.schemas.exam import ExamSessionCreate, ExamSession as ExamSessionSchema, ExamSubmission, ExamResult
+from sqlalchemy.sql import func
 
 router = APIRouter()
 
@@ -127,7 +128,8 @@ def submit_exam(
     exam.correct_answers = correct
     exam.score_percentage = (correct / max(1, exam.total_questions)) * 100.0
     exam.is_completed = True
-    exam.completed_at = datetime.utcnow()
+    # Use database time to match started_at (server_default=func.now())
+    exam.completed_at = func.now()
     exam.time_taken_minutes = submission.time_taken_minutes
 
     db.commit()

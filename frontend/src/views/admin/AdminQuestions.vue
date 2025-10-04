@@ -34,63 +34,27 @@
           </div>
           <label style="font-weight:600; margin-bottom:4px; display:block;">Question text</label>
           <RichTextEditor v-model="q.question_text" placeholder="Write the question here..." />
-          <div class="image-row">
-            <input v-model="q.question_img" class="input" placeholder="Question image URL (optional)" />
-            <label class="btn secondary" style="white-space:nowrap;">
-              Upload
-              <input type="file" accept="image/*" style="display:none;" @change="e => onFileChange(i, 'question_img', e)" />
-            </label>
-          </div>
+          <CdnUploader v-model="q.question_img" />
           <div class="opt-grid">
             <div style="display:flex; flex-direction:column; gap:6px;">
               <input v-model="q.option_a" class="input" placeholder="Option A" />
-              <div class="image-row">
-                <input v-model="q.option_a_img" class="input" placeholder="Option A image URL (optional)" />
-                <label class="btn secondary" style="white-space:nowrap;">
-                  Upload
-                  <input type="file" accept="image/*" style="display:none;" @change="e => onFileChange(i, 'option_a_img', e)" />
-                </label>
-              </div>
+              <CdnUploader v-model="q.option_a_img" />
             </div>
             <div style="display:flex; flex-direction:column; gap:6px;">
               <input v-model="q.option_b" class="input" placeholder="Option B" />
-              <div class="image-row">
-                <input v-model="q.option_b_img" class="input" placeholder="Option B image URL (optional)" />
-                <label class="btn secondary" style="white-space:nowrap;">
-                  Upload
-                  <input type="file" accept="image/*" style="display:none;" @change="e => onFileChange(i, 'option_b_img', e)" />
-                </label>
-              </div>
+              <CdnUploader v-model="q.option_b_img" />
             </div>
             <div style="display:flex; flex-direction:column; gap:6px;">
               <input v-model="q.option_c" class="input" placeholder="Option C" />
-              <div class="image-row">
-                <input v-model="q.option_c_img" class="input" placeholder="Option C image URL (optional)" />
-                <label class="btn secondary" style="white-space:nowrap;">
-                  Upload
-                  <input type="file" accept="image/*" style="display:none;" @change="e => onFileChange(i, 'option_c_img', e)" />
-                </label>
-              </div>
+              <CdnUploader v-model="q.option_c_img" />
             </div>
             <div style="display:flex; flex-direction:column; gap:6px;">
               <input v-model="q.option_d" class="input" placeholder="Option D" />
-              <div class="image-row">
-                <input v-model="q.option_d_img" class="input" placeholder="Option D image URL (optional)" />
-                <label class="btn secondary" style="white-space:nowrap;">
-                  Upload
-                  <input type="file" accept="image/*" style="display:none;" @change="e => onFileChange(i, 'option_d_img', e)" />
-                </label>
-              </div>
+              <CdnUploader v-model="q.option_d_img" />
             </div>
             <div style="display:flex; flex-direction:column; gap:6px;">
               <input v-model="q.option_e" class="input" placeholder="Option E" />
-              <div class="image-row">
-                <input v-model="q.option_e_img" class="input" placeholder="Option E image URL (optional)" />
-                <label class="btn secondary" style="white-space:nowrap;">
-                  Upload
-                  <input type="file" accept="image/*" style="display:none;" @change="e => onFileChange(i, 'option_e_img', e)" />
-                </label>
-              </div>
+              <CdnUploader v-model="q.option_e_img" />
             </div>
             <input v-model="q.correct_answer" class="input" maxlength="1" placeholder="Correct (A-E)" />
           </div>
@@ -124,6 +88,7 @@
 import { onMounted, ref, computed } from 'vue'
 import api from '../../api/client'
 import RichTextEditor from '../../components/RichTextEditor.vue'
+import CdnUploader from '../../components/CdnUploader.vue'
 const categories = ref([])
 const sets = ref([])
 const selectedCategoryId = ref(null)
@@ -246,14 +211,7 @@ function toRich(text, img){
   return JSON.stringify({ text: t, img: i })
 }
 
-async function onFileChange(index, field, evt){
-  const file = evt.target.files && evt.target.files[0]
-  if (!file) return
-  const form = new FormData()
-  form.append('file', file)
-  const { data } = await api.post('/files/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-  builder.value.questions[index][field] = data.url
-}
+// Manual upload helper removed (replaced by CdnUploader)
 </script>
 
 <style scoped>
