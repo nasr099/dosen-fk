@@ -20,7 +20,7 @@
         <div style="font-weight:700;">Question:</div>
       </div>
       <div class="qwrap">
-        <div v-if="qDetail(a).text" class="qtext">{{ qDetail(a).text }}</div>
+        <div v-if="qDetail(a).text" class="qtext" v-html="renderHTML(qDetail(a).text)"></div>
         <img v-if="qDetail(a).img" :src="resolveImg(qDetail(a).img)" alt="Question" class="qimg" />
       </div>
 
@@ -29,19 +29,19 @@
           <div><strong>Selected:</strong> <span :class="a.is_correct ? 'good' : 'bad'">{{ a.selected_answer || '-' }}</span></div>
           <div v-if="sDetail(a).text || sDetail(a).img" class="ans-detail">
             <img v-if="sDetail(a).img" :src="resolveImg(sDetail(a).img)" alt="Selected answer" />
-            <div v-if="sDetail(a).text" class="text">{{ sDetail(a).text }}</div>
+            <div v-if="sDetail(a).text" class="text" v-html="renderHTML(sDetail(a).text)"></div>
           </div>
         </div>
         <div class="col">
           <div><strong>Correct:</strong> <span class="good">{{ a.correct_answer }}</span></div>
           <div v-if="cDetail(a).text || cDetail(a).img" class="ans-detail">
             <img v-if="cDetail(a).img" :src="resolveImg(cDetail(a).img)" alt="Correct answer" />
-            <div v-if="cDetail(a).text" class="text">{{ cDetail(a).text }}</div>
+            <div v-if="cDetail(a).text" class="text" v-html="renderHTML(cDetail(a).text)"></div>
           </div>
         </div>
       </div>
 
-      <div class="explain"><strong>Explanation:</strong> {{ a.explanation || '-' }}</div>
+      <div class="explain"><strong>Explanation:</strong> <span v-if="a.explanation" v-html="renderHTML(a.explanation)"></span><span v-else>-</span></div>
     </div>
   </div>
 </template>
@@ -60,6 +60,23 @@ const pickFirst = (obj, keys) => {
     const v = obj?.[k]
     if (v !== undefined && v !== null && String(v).trim() !== '') return v
   }
+
+// Very small sanitizer: allow a limited set of tags/attributes used by our editor
+function renderHTML(html){
+  const ALLOWED_TAGS = new Set(['P','B','I','U','S','STRONG','EM','UL','OL','LI','H1','H2','H3','H4','BLOCKQUOTE','A','IMG','CODE','PRE','SUB','SUP','HR','BR','DIV','SPAN'])
+  const ALLOWED_ATTR = new Set(['href','src','alt','target','rel','style'])
+  const div = document.createElement('div')
+  div.innerHTML = String(html || '')
+  ;[...div.querySelectorAll('script,style')].forEach(n => n.remove())
+  ;(function clean(node){
+    [...node.children].forEach(ch => {
+      if (!ALLOWED_TAGS.has(ch.tagName)) { ch.replaceWith(...ch.childNodes); return }
+      [...ch.attributes].forEach(attr => { if (!ALLOWED_ATTR.has(attr.name) || attr.name.startsWith('on')) ch.removeAttribute(attr.name) })
+      clean(ch)
+    })
+  })(div)
+  return div.innerHTML
+}
   return null
 }
 

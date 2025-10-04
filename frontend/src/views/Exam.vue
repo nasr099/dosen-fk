@@ -19,13 +19,16 @@
             class="q-img"
             @click="openLightbox(resolveImg(parseRich(q.question_text).img))"
           />
-          <div class="qtext">Q{{ idx+1 }}. {{ parseRich(q.question_text).text }}</div>
+          <div class="qtext">
+            <span class="qnum">Q{{ idx+1 }}.</span>
+            <span v-if="parseRich(q.question_text).text" v-html="renderHTML(parseRich(q.question_text).text)"></span>
+          </div>
           <div class="answers-label">Jawaban</div>
           <div class="options grid-2">
             <label v-for="opt in ['A','B','C','D','E']" :key="opt" class="opt">
               <input type="radio" :name="`q_${q.id}`" :value="opt" v-model="answers[q.id]" @change="markAnswered(q.id)" />
               <span class="opt-content">
-                <span>{{ parseOption(q, opt).text }}</span>
+                <span v-if="parseOption(q, opt).text" v-html="renderHTML(parseOption(q, opt).text)"></span>
                 <img
                   v-if="parseOption(q, opt).img"
                   :src="resolveImg(parseOption(q, opt).img)"

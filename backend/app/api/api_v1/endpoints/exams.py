@@ -45,13 +45,13 @@ def start_exam(
         questions = db.query(QuestionModel).filter(
             QuestionModel.question_set_id == payload.question_set_id,
             QuestionModel.is_active == True,
-        ).all()
+        ).order_by(QuestionModel.id.asc()).all()
         time_limit = qs.time_limit_minutes
     else:
         # Select questions by category
         questions = db.query(QuestionModel).filter(
             QuestionModel.category_id == payload.category_id, QuestionModel.is_active == True
-        ).all()
+        ).order_by(QuestionModel.id.asc()).all()
         time_limit = payload.time_limit_minutes or 60
     if not questions:
         raise HTTPException(status_code=400, detail="No questions available for this category")
@@ -164,7 +164,8 @@ def get_result(session_id: int, db: Session = Depends(get_db), current_user=Depe
         raise HTTPException(status_code=404, detail="Exam session not found")
 
     # gather answers and enrich with correct answer + explanation
-    answers_db = db.query(ExamAnswerModel).filter(ExamAnswerModel.exam_session_id == exam.id).all()
+    # Preserve the original order (creation order matches the order from /start)
+    answers_db = db.query(ExamAnswerModel).filter(ExamAnswerModel.exam_session_id == exam.id).order_by(ExamAnswerModel.id.asc()).all()
     qids = [a.question_id for a in answers_db]
     questions = { q.id: q for q in db.query(QuestionModel).filter(QuestionModel.id.in_(qids)).all() }
     answers_detail = []
