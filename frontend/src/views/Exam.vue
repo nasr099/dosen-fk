@@ -38,7 +38,7 @@
                 />
               </span>
             </label>
-          </div>
+        </div>
         </div>
         <div class="nav-row">
           <button class="btn secondary" :disabled="currentIndex===0" @click="prev">‹ Sebelumnya</button>
@@ -97,10 +97,25 @@
         </div>
       </div>
     </div>
+
+    <!-- Violation reached modal -->
+    <div v-if="endedByViolation" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-head">Exam Stopped</div>
+        <div class="modal-body">
+          <p>Focus rules were violated {{ violations }} times. Your exam will be submitted automatically.</p>
+          <p v-if="submitError" style="margin-top:10px;color:#b91c1c;">{{ submitError }}</p>
+        </div>
+        <div class="modal-actions">
+          <button v-if="isSubmitting" class="btn" disabled>Submitting…</button>
+          <button v-else class="btn" @click="retrySubmitNow">Retry now</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <script setup>
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import api from '../api/client'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
@@ -128,6 +143,13 @@ const answeredCount = computed(() => Object.values(answers.value).filter(Boolean
 const totalCount = computed(() => questions.value.length || totalQuestions.value)
 const setTitle = ref('')
 
+// UI state used by template (must be defined early)
+const isSubmitting = ref(false)
+const showConfirm = ref(false)
+const showAuthModal = ref(false)
+const submitError = ref('')
+const pendingSubmitCache = ref(null)
+
 // --- Anti-cheat state ---
 const violations = ref(0)
 const VIOLATION_LIMIT = 3
@@ -135,7 +157,18 @@ const inViolation = computed(()=> violations.value > 0)
 const endedByViolation = ref(false)
 let unsubs = []
 let fullscreenRequested = false
+let guardTick = null
+let wasFullscreen = false
+let lastViolationTs = 0
 
+function maybeViolate(reason){
+  const now = Date.now()
+  // Debounce multiple events firing at once
+  if (now - lastViolationTs > 1200){
+    addViolation(reason)
+    lastViolationTs = now
+  }
+}
 function addViolation(reason){
   if (endedByViolation.value) return
   violations.value = Math.min(VIOLATION_LIMIT, violations.value + 1)
@@ -145,9 +178,20 @@ function addViolation(reason){
   }
 }
 
+async function endForViolation(){
+  if (endedByViolation.value) return
+  endedByViolation.value = true
+  removeGuards()
+  try { if (document.fullscreenElement) await document.exitFullscreen() } catch {}
+  // Auto-submit with current answers immediately (guarded)
+  if (!isSubmitting.value) {
+    await submit()
+  }
+}
+
 async function requestFullscreen(){
   const el = document.documentElement
-  if (!document.fullscreenElement && el.requestFullscreen){
+  if (!document.fullscreenElement && el?.requestFullscreen){
     fullscreenRequested = true
     try { await el.requestFullscreen() } catch {}
   }
@@ -161,17 +205,17 @@ function ensureFullscreen(){
 
 function onFullscreenChange(){
   if (!document.fullscreenElement && fullscreenRequested){
-    addViolation('exit-fullscreen')
+    maybeViolate('exit-fullscreen')
     // attempt to re-enter
     requestFullscreen()
   }
 }
 
 function onVisibility(){
-  if (document.hidden){ addViolation('tab-hidden') }
+  if (document.hidden){ maybeViolate('tab-hidden') }
 }
 
-function onBlur(){ addViolation('window-blur') }
+function onBlur(){ maybeViolate('window-blur') }
 function blockContextMenu(e){ e.preventDefault() }
 function blockClipboard(e){ e.preventDefault() }
 function onKeydown(e){
@@ -325,21 +369,22 @@ function setupGuards(){
     () => document.removeEventListener('paste', blockClipboard),
     () => document.removeEventListener('keydown', onKeydown, { capture: true }),
   ]
+  // Polling fallback: if fullscreen exits without firing change (or initial request blocked), record once
+  wasFullscreen = !!document.fullscreenElement
+  guardTick = setInterval(() => {
+    if (endedByViolation.value) return
+    const isFull = !!document.fullscreenElement
+    if (wasFullscreen && !isFull) {
+      maybeViolate('lost-fullscreen')
+    }
+    // also catch hidden state if event missed
+    if (document.hidden){ maybeViolate('hidden-poll') }
+    wasFullscreen = isFull
+  }, 1000)
 }
-
-onUnmounted(()=>{
-  try { unsubs.forEach(fn=>fn()) } catch {}
-  if (document.fullscreenElement){
-    try { document.exitFullscreen() } catch {}
-  }
-})
-
-const isSubmitting = ref(false)
-const showConfirm = ref(false)
 function openConfirm(){ showConfirm.value = true }
 function closeConfirm(){ showConfirm.value = false }
 function confirmSubmit(){ showConfirm.value = false; submit() }
-const showAuthModal = ref(false)
 function closeAuthModal(){ showAuthModal.value = false }
 function goLogin(){
   try {
@@ -351,7 +396,6 @@ function goLogin(){
   const next = encodeURIComponent(window.location.pathname + window.location.search)
   router.push({ name: 'login', query: { next } })
 }
-const pendingSubmitCache = ref(null)
 async function submit(){
   if (isSubmitting.value) return
   isSubmitting.value = true
@@ -381,9 +425,15 @@ async function submit(){
       return
     }
     console.error('Submit failed', e)
+    submitError.value = e?.response?.data?.detail || e?.message || 'Submit failed. Please try again.'
   } finally {
     isSubmitting.value = false
   }
+}
+
+async function retrySubmitNow(){
+  submitError.value = ''
+  await submit()
 }
 
 // On return from login, if we have a cached submit and a valid token, retry once
