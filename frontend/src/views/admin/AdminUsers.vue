@@ -3,11 +3,6 @@
     <h2>Users</h2>
     <div class="toolbar" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
       <input v-model="q" placeholder="Search email/name/phone" class="input" style="max-width:260px;" />
-      <select v-model="filterActive" class="input">
-        <option value="all">All</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-      </select>
       <select v-model="filterAdmin" class="input">
         <option value="all">All roles</option>
         <option value="admin">Admin</option>
@@ -24,8 +19,11 @@
         <option value="active_until_asc">Valid Until asc</option>
       </select>
       <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
-        <button class="btn-sm" :disabled="selectedIds.length===0" @click="bulkActivate">Activate Selected (1 mo)</button>
-        <button class="btn-sm gray" :disabled="selectedIds.length===0" @click="bulkDeactivate">Deactivate Selected</button>
+        <select v-model.number="bulkMonths" class="input">
+          <option v-for="m in monthsOptions" :key="m" :value="m">{{ m }} month{{ m>1? 's':'' }}</option>
+        </select>
+        <button class="btn-sm" :disabled="selectedIds.length===0" @click="setPlanSelected('paid')">Set Selected Paid</button>
+        <button class="btn-sm gray" :disabled="selectedIds.length===0" @click="setPlanSelected('free')">Set Selected Free</button>
       </div>
     </div>
     <table style="width:100%; border-collapse:collapse;">
@@ -36,8 +34,8 @@
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Name</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Phone</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Admin</th>
-          <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Active</th>
-          <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Valid Until</th>
+          <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Plan</th>
+          <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Validity</th>
           <th style="text-align:right; border-bottom:1px solid #e2e8f0; padding:8px;">Actions</th>
         </tr>
       </thead>
@@ -49,12 +47,17 @@
           <td style="padding:8px; white-space:nowrap;">{{ u.phone || '-' }}</td>
           <td style="padding:8px;">{{ u.is_admin ? 'Yes' : 'No' }}</td>
           <td style="padding:8px; white-space:nowrap;">
-            <span :class="['badge', u.is_active ? 'ok' : 'off']">{{ u.is_active ? 'Active' : 'Inactive' }}</span>
+            <span :class="['badge', u.plan==='paid' ? 'ok' : 'off']">{{ (u.plan||'free')==='paid' ? 'Paid' : 'Free' }}</span>
           </td>
-          <td style="padding:8px; white-space:nowrap;">{{ formatDate(u.active_until) || '-' }}</td>
+          <td style="padding:8px; white-space:nowrap; display:flex; gap:6px; align-items:center;">
+            <select v-model.number="monthsById[u.id]" class="input" style="width:110px;">
+              <option v-for="m in monthsOptions" :key="m" :value="m">{{ m }} month{{ m>1? 's':'' }}</option>
+            </select>
+            <span class="muted" v-if="u.active_until">→ {{ formatDate(u.active_until) }}</span>
+          </td>
           <td style="padding:8px; text-align:right; white-space:nowrap;">
-            <button class="btn-sm" v-if="!u.is_active" @click="activate(u)">Activate (1 mo)</button>
-            <button class="btn-sm gray" v-else @click="deactivate(u)">Deactivate</button>
+            <button class="btn-sm" @click="setPaid(u)">Set Paid</button>
+            <button class="btn-sm gray" @click="setFree(u)">Set Free</button>
           </td>
         </tr>
       </tbody>
@@ -66,10 +69,12 @@ import { onMounted, ref, computed } from 'vue'
 import api from '../../api/client'
 const users = ref([])
 const q = ref('')
-const filterActive = ref('all')
 const filterAdmin = ref('all')
 const sortBy = ref('created_desc')
 const selectedIds = ref([])
+const monthsOptions = [1,2,3,4,5,6,7,8,9,10,11,12]
+const monthsById = ref({})
+const bulkMonths = ref(1)
 
 onMounted(async () => {
   const { data } = await api.get('/users/')
@@ -88,12 +93,13 @@ async function refresh(){
   users.value = data
 }
 
-async function activate(u){
-  await api.post(`/users/${u.id}/activate`)
+async function setPaid(u){
+  const months = Number(monthsById.value[u.id] || 1)
+  await api.post('/users/activate-bulk', { ids: [u.id], months })
   await refresh()
 }
-async function deactivate(u){
-  await api.post(`/users/${u.id}/deactivate`)
+async function setFree(u){
+  await api.post('/users/deactivate-bulk', { ids: [u.id] })
   await refresh()
 }
 
@@ -102,10 +108,6 @@ const filteredSorted = computed(() => {
   // filter text
   const k = q.value.toLowerCase().trim()
   if (k) arr = arr.filter(u => [u.email, u.full_name, u.phone].some(v => String(v||'').toLowerCase().includes(k)))
-  // filter active
-  if (filterActive.value !== 'all'){
-    arr = arr.filter(u => filterActive.value === 'active' ? u.is_active : !u.is_active)
-  }
   // filter role
   if (filterAdmin.value !== 'all'){
     arr = arr.filter(u => filterAdmin.value === 'admin' ? u.is_admin : !u.is_admin)
@@ -134,16 +136,17 @@ function toggleOne(id, val){
   if (val) s.add(id); else s.delete(id)
   selectedIds.value = Array.from(s)
 }
-async function bulkActivate(){
+async function setPlanSelected(plan){
   if (selectedIds.value.length===0) return
-  await api.post('/users/activate-bulk', { ids: selectedIds.value, months: 1 })
+  if (plan === 'paid'){
+    const months = Number(bulkMonths.value || 1)
+    await api.post('/users/activate-bulk', { ids: selectedIds.value, months })
+  } else {
+    await api.post('/users/deactivate-bulk', { ids: selectedIds.value })
+  }
   await refresh()
 }
-async function bulkDeactivate(){
-  if (selectedIds.value.length===0) return
-  await api.post('/users/deactivate-bulk', { ids: selectedIds.value })
-  await refresh()
-}
+// no separate bulk extend; use Set Selected Paid with months
 </script>
 
 <style scoped>

@@ -6,12 +6,18 @@ class CategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
     is_active: Optional[bool] = True
+    parent_id: Optional[int] = None
+    banner_url: Optional[str] = None
 
 class CategoryCreate(CategoryBase):
     pass
 
-class CategoryUpdate(CategoryBase):
-    pass
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+    parent_id: Optional[int] = None
+    banner_url: Optional[str] = None
 
 class Category(CategoryBase):
     id: int

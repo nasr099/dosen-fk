@@ -42,6 +42,14 @@ def start_exam(
         qs = db.query(QuestionSetModel).filter(QuestionSetModel.id == payload.question_set_id).first()
         if not qs:
             raise HTTPException(status_code=400, detail="Invalid question set")
+        # Access control: free users cannot start paid sets
+        try:
+            user_plan = getattr(current_user, 'plan', 'free') or 'free'
+        except Exception:
+            user_plan = 'free'
+        # Use getattr for safety during rolling reloads/migrations
+        if ((getattr(qs, 'access_level', 'free') or 'free') == 'paid') and user_plan == 'free':
+            raise HTTPException(status_code=403, detail={"code":"PAYWALL","detail":"Paid plan required"})
         questions = db.query(QuestionModel).filter(
             QuestionModel.question_set_id == payload.question_set_id,
             QuestionModel.is_active == True,

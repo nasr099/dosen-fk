@@ -9,6 +9,8 @@ class QuestionSetBase(BaseModel):
     description: Optional[str] = None
     time_limit_minutes: int = 60
     is_active: bool = True
+    # free | paid
+    access_level: str = "free"
 
 class QuestionSetCreate(QuestionSetBase):
     pass
@@ -18,6 +20,7 @@ class QuestionSetUpdate(BaseModel):
     description: Optional[str] = None
     time_limit_minutes: Optional[int] = None
     is_active: Optional[bool] = None
+    access_level: Optional[str] = None
 
 class QuestionSet(QuestionSetBase):
     id: int

@@ -4,10 +4,14 @@ import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Profile from '../views/Profile.vue'
 import CategoryList from '../views/CategoryList.vue'
+import CategoryHeads from '../views/CategoryHeads.vue'
+import SubCategories from '../views/SubCategories.vue'
 import Exam from '../views/Exam.vue'
 import Result from '../views/Result.vue'
 import SetOverview from '../views/SetOverview.vue'
 import Team from '../views/Team.vue'
+import ZoomDiscussions from '../views/ZoomDiscussions.vue'
+import ZoomDiscussionDetail from '../views/ZoomDiscussionDetail.vue'
 import BlogList from '../views/BlogList.vue'
 import BlogDetail from '../views/BlogDetail.vue'
 
@@ -21,6 +25,7 @@ import AdminBranding from '../views/admin/AdminBranding.vue'
 import AdminTeam from '../views/admin/AdminTeam.vue'
 import AdminBlogList from '../views/admin/AdminBlogList.vue'
 import AdminBlogEdit from '../views/admin/AdminBlogEdit.vue'
+import AdminZoom from '../views/admin/AdminZoom.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -29,11 +34,15 @@ const routes = [
   { path: '/login', component: Login },
   { path: '/register', component: Register },
   { path: '/profile', component: Profile },
-  { path: '/categories', component: CategoryList },
+  { path: '/categories', component: CategoryHeads },
+  { path: '/categories/:headId', component: SubCategories, props: true },
+  { path: '/categories/:headId/:subId', component: CategoryList, props: true },
   { path: '/exam/:categoryId', name: 'exam', component: Exam, props: true },
   { path: '/set/:setId', name: 'set-overview', component: SetOverview, props: true },
   { path: '/result/:sessionId', name: 'result', component: Result, props: true },
   { path: '/team', component: Team },
+  { path: '/zoom', component: ZoomDiscussions },
+  { path: '/zoom/:id', component: ZoomDiscussionDetail, props: true },
 
   { path: '/admin/login', component: AdminLogin },
   { path: '/admin/users', component: AdminUsers },
@@ -46,6 +55,7 @@ const routes = [
   { path: '/admin/blog', component: AdminBlogList },
   { path: '/admin/blog/new', component: AdminBlogEdit, props: { isNew: true } },
   { path: '/admin/blog/:postId', component: AdminBlogEdit, props: true },
+  { path: '/admin/zoom', component: AdminZoom },
 ]
 
 const router = createRouter({
@@ -58,6 +68,20 @@ const router = createRouter({
     if (savedPosition) return savedPosition
     return { top: 0 }
   },
+})
+
+// Route guard: only admins can access /admin routes (except /admin/login)
+router.beforeEach((to, from, next) => {
+  if (to.path.startsWith('/admin') && to.path !== '/admin/login'){
+    // Read user from localStorage to avoid requiring Pinia instance here
+    let user = null
+    try { user = JSON.parse(localStorage.getItem('user') || 'null') } catch { user = null }
+    const isAdmin = user && user.is_admin === true
+    if (!isAdmin){
+      return next('/admin/login')
+    }
+  }
+  return next()
 })
 
 export default router

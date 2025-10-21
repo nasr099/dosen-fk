@@ -9,6 +9,7 @@
       <nav class="links">
         <router-link to="/">Home</router-link>
         <router-link to="/categories">Categories</router-link>
+        <router-link to="/zoom">Zoom Discussion</router-link>
         <router-link to="/blog">Blog</router-link>
         <div class="dropdown" ref="supportMenuRef">
           <a href="#" class="drop-toggle" @click.prevent="toggleSupportMenu" :aria-expanded="showSupportMenu">Support ▾</a>
@@ -25,6 +26,7 @@
             <router-link to="/admin/categories">Categories</router-link>
             <router-link to="/admin/questions">Questions</router-link>
             <router-link to="/admin/promos">Promos</router-link>
+            <router-link to="/admin/zoom">Zoom Discussions</router-link>
             <router-link to="/admin/team">Team</router-link>
             <router-link to="/admin/blog">Blog</router-link>
           </div>
@@ -43,6 +45,7 @@
       <div v-if="showMobile" class="mobile-menu">
         <router-link to="/" @click="closeMobile">Home</router-link>
         <router-link to="/categories" @click="closeMobile">Categories</router-link>
+        <router-link to="/zoom" @click="closeMobile">Zoom Discussion</router-link>
         <router-link to="/blog" @click="closeMobile">Blog</router-link>
         <router-link to="/#faq" @click="closeMobile">FAQ</router-link>
         <router-link to="/team" @click="closeMobile">Team</router-link>
@@ -53,6 +56,7 @@
             <router-link to="/admin/categories" @click="closeMobile">Categories</router-link>
             <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
             <router-link to="/admin/promos" @click="closeMobile">Promos</router-link>
+            <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>
             <router-link to="/admin/team" @click="closeMobile">Team</router-link>
             <router-link to="/admin/blog" @click="closeMobile">Blog</router-link>
             </div>

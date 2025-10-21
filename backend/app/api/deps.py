@@ -34,19 +34,24 @@ def get_current_active_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> User:
-    # Auto-deactivate if expired
+    # Keep expiry tracking but do not block access anymore.
     if getattr(current_user, 'active_until', None):
         now = datetime.now(timezone.utc)
         try:
             expires = current_user.active_until
             if expires and expires < now:
+                # Auto-expire: mark inactive and downgrade plan to free
                 current_user.is_active = False
+                try:
+                    if getattr(current_user, 'plan', None) != 'free':
+                        current_user.plan = 'free'
+                except Exception:
+                    pass
                 db.add(current_user)
                 db.commit()
         except Exception:
             pass
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+    # Both free and paid users can access; no block on is_active
     return current_user
 
 def get_current_admin_user(

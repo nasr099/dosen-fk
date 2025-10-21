@@ -3,12 +3,17 @@
     <h2>Categories</h2>
 
     <div class="header-controls">
-      <div class="chips">
+      <div class="chips" v-if="!isScopedToSub">
         <button class="pill" :class="{ active: selectedCategoryId===null }" @click="selectCategory(null)">All Program</button>
         <button v-for="c in categories" :key="c.id" class="pill" :class="{ active: selectedCategoryId===c.id }" @click="selectCategory(c.id)">{{ c.name }}</button>
       </div>
       <div class="search-sort">
         <input v-model="searchQuery" class="input" placeholder="Search set..." />
+        <select v-model="planFilter" class="input">
+          <option value="all">All plans</option>
+          <option value="free">Free</option>
+          <option value="paid">Paid</option>
+        </select>
         <select v-model="statusFilter" class="input">
           <option value="all">All status</option>
           <option value="taken">Taken</option>
@@ -44,7 +49,12 @@
                   {{ isExpanded(s.id) ? 'Show less' : 'Read more' }}
                 </button>
               </td>
-              <td>{{ categoryName(s.category_id) }}</td>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span>{{ categoryName(s.category_id) }}</span>
+                  <span class="plan-badge" :class="(s.access_level||'free')==='paid' ? 'paid':'free'">{{ (s.access_level||'free')==='paid' ? 'Paid' : 'Free' }}</span>
+                </div>
+              </td>
               <td>{{ s.count }} item</td>
               <td>
                 <div class="status" :class="{ taken: lastResultBySet[s.id]?.taken }">
@@ -68,7 +78,10 @@
 </template>
 <script setup>
 import { onMounted, ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../api/client'
+const route = useRoute()
+const router = useRouter()
 const categories = ref([])
 const sets = ref([])
 const history = ref([])
@@ -76,8 +89,13 @@ const selectedCategoryId = ref(null)
 const searchQuery = ref('')
 const sortMode = ref('recent') // recent, oldest, az, za
 const statusFilter = ref('all') // all | taken | not
+const planFilter = ref('all') // all | free | paid
 const selectedCategoryIds = ref([])
 const sidebarCategoryQuery = ref('')
+const isScopedToSub = computed(() => {
+  const subId = Number(route.params.subId)
+  return !!(subId && Number.isFinite(subId))
+})
 
 // track expanded rows for description
 const expanded = ref(new Set())
@@ -118,6 +136,10 @@ const displayedSets = computed(() => {
   // search
   const q = searchQuery.value.toLowerCase().trim()
   if (q){ arr = arr.filter(s => String(s.title||'').toLowerCase().includes(q)) }
+  // plan filter
+  if (planFilter.value !== 'all'){
+    arr = arr.filter(s => (String(s.access_level||'free') === planFilter.value))
+  }
   // status filter
   if (statusFilter.value !== 'all'){
     arr = arr.filter(s => {
@@ -163,16 +185,29 @@ const lastResultBySet = computed(() => {
 onMounted(async () => {
   const { data: cats } = await api.get('/categories/')
   categories.value = cats
-  // load all sets and their question counts
-  const all = []
-  for (const c of categories.value){
-    const { data: s } = await api.get('/sets/', { params: { category_id: c.id } })
+  const subId = Number(route.params.subId)
+  // If a sub-category id is provided by route, only load that category's sets
+  if (subId && Number.isFinite(subId)){
+    selectedCategoryId.value = subId
+    const { data: s } = await api.get('/sets/', { params: { category_id: subId } })
+    const all = []
     for (const one of s){
       const { data: qs } = await api.get('/questions/', { params: { question_set_id: one.id } })
       all.push({ ...one, count: qs.length })
     }
+    sets.value = all
+  } else {
+    // load all sets and their question counts grouped by categories
+    const all = []
+    for (const c of categories.value){
+      const { data: s } = await api.get('/sets/', { params: { category_id: c.id } })
+      for (const one of s){
+        const { data: qs } = await api.get('/questions/', { params: { question_set_id: one.id } })
+        all.push({ ...one, count: qs.length })
+      }
+    }
+    sets.value = all
   }
-  sets.value = all
 
   // fetch exam history to determine taken status and scores
   try {
@@ -209,4 +244,7 @@ onMounted(async () => {
 .status.taken{ color:#065f46; }
 .status.taken .dot{ background:#16a34a; }
 .empty { text-align:center; color:#94a3b8; padding:16px 0; }
+.plan-badge{ font-size:12px; font-weight:800; padding:2px 8px; border-radius:999px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; }
+.plan-badge.paid{ background:#fef3c7; color:#92400e; border-color:#fde68a; }
+.plan-badge.free{ background:#ecfeff; color:#155e75; border-color:#a5f3fc; }
 </style>

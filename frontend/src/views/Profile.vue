@@ -70,12 +70,12 @@
           <div class="row"><span class="label">Name</span><span class="value">{{ auth.user?.full_name || '-' }}</span></div>
           <div class="row"><span class="label">Phone</span><span class="value">{{ auth.user?.phone || '-' }}</span></div>
           <div class="row"><span class="label">Email</span><span class="value">{{ auth.user?.email || '-' }}</span></div>
-          <div class="row"><span class="label">Status</span>
+          <div class="row"><span class="label">Plan</span>
             <span class="value">
-              <span :class="['badge', auth.user?.is_active ? 'ok' : 'off']">{{ auth.user?.is_active ? 'Active' : 'Inactive' }}</span>
+              <span :class="['badge', (auth.user?.plan||'free')==='paid' ? 'ok' : 'off']">{{ (auth.user?.plan||'free')==='paid' ? 'Paid' : 'Free' }}</span>
             </span>
           </div>
-          <div class="row"><span class="label">Active Until</span><span class="value">{{ expiryText }}</span></div>
+          <div class="row"><span class="label">Valid Until</span><span class="value">{{ expiryText || '-' }}</span></div>
         </div>
       </div>
 

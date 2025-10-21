@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import auth, users, categories, questions, exams, promos, sets, team, posts
+from .endpoints import auth, users, categories, questions, exams, promos, sets, team, posts, zoom_discussions
 
 api_router = APIRouter()
 
@@ -12,3 +12,4 @@ api_router.include_router(promos.router, prefix="/promos", tags=["promos"])
 api_router.include_router(sets.router, prefix="/sets", tags=["sets"])
 api_router.include_router(team.router, prefix="/team", tags=["team"]) 
 api_router.include_router(posts.router, prefix="/posts", tags=["posts"]) 
+api_router.include_router(zoom_discussions.router, prefix="/zoom-discussions", tags=["zoom"]) 

@@ -7,6 +7,8 @@ class UserBase(BaseModel):
     full_name: str
     is_active: Optional[bool] = True
     phone: Optional[str] = None
+    # free | paid
+    plan: Optional[str] = "free"
 
 class UserCreate(UserBase):
     password: str

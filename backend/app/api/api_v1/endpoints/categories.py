@@ -18,6 +18,17 @@ router = APIRouter()
 def list_categories(db: Session = Depends(get_db)):
     return db.query(CategoryModel).filter(CategoryModel.is_active == True).all()
 
+@router.get("/heads", response_model=List[CategorySchema])
+def list_head_categories(db: Session = Depends(get_db)):
+    return db.query(CategoryModel).filter(CategoryModel.is_active == True, CategoryModel.parent_id == None).all()
+
+@router.get("/{head_id}/children", response_model=List[CategorySchema])
+def list_children(head_id: int, db: Session = Depends(get_db)):
+    head = db.query(CategoryModel).filter(CategoryModel.id == head_id).first()
+    if not head:
+        raise HTTPException(status_code=404, detail="Head category not found")
+    return db.query(CategoryModel).filter(CategoryModel.is_active == True, CategoryModel.parent_id == head_id).all()
+
 @router.post("/", response_model=CategorySchema)
 def create_category(
     category_in: CategoryCreate,

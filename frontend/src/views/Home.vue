@@ -1,12 +1,130 @@
 <template>
-  <div class="grid" style="gap:24px;">
-    <PromoCarousel />
+  <!-- Top Banner -->
+  <PromoCarousel />
+
+  <!-- Payment How-To Section -->
+  <div class="card pay-steps">
+    <h2 class="pay-title">Akses Konten Premium dalam 3 Langkah Mudah</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="illo chat">
+          <!-- Chat / WhatsApp-like bubble -->
+          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#22c55e"/>
+                <stop offset="100%" stop-color="#06b6d4"/>
+              </linearGradient>
+            </defs>
+            <rect x="6" y="8" width="52" height="36" rx="10" fill="url(#g1)" opacity=".15"/>
+            <path d="M12 20h24M12 28h36M12 36h22" stroke="#06b6d4" stroke-width="3" stroke-linecap="round"/>
+            <path d="M28 48l8-8h20" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="50" cy="18" r="4" fill="#22c55e"/>
+          </svg>
+        </div>
+        <div class="step-head">1. Hubungi Admin via WhatsApp</div>
+        <div class="step-desc">Klik tombol di bawah dan sampaikan paket yang Anda inginkan.</div>
+      </div>
+      <div class="step">
+        <div class="illo pay">
+          <!-- Payment card + link icon -->
+          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="10" y="14" width="44" height="28" rx="6" fill="#fff7ed" stroke="#f59e0b"/>
+            <rect x="14" y="26" width="36" height="4" rx="2" fill="#f59e0b"/>
+            <rect x="14" y="20" width="14" height="3" rx="1.5" fill="#f59e0b"/>
+            <g transform="translate(0,8)">
+              <path d="M40 36c2.2 0 4-1.8 4-4 0-1-.4-2-1.1-2.7l-1.9-1.9c-.8-.8-.8-2 0-2.8s2-.8 2.8 0l1.9 1.9C46.4 26.4 47 28 47 30c0 3.9-3.1 7-7 7h-3" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round"/>
+              <path d="M32 34c-2.2 0-4 1.8-4 4 0 1 .4 2 1.1 2.7l1.9 1.9c.8.8.8 2 0 2.8s-2 .8-2.8 0l-1.9-1.9C24.6 42.6 24 41 24 39c0-3.9 3.1-7 7-7h3" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round"/>
+            </g>
+          </svg>
+        </div>
+        <div class="step-head">2. Lakukan Pembayaran</div>
+        <div class="step-desc">Admin akan mengirimkan link pembayaran Resmi. Selesaikan pembayaran Anda melalui link tersebut.</div>
+      </div>
+      <div class="step">
+        <div class="illo check">
+          <!-- Activation / verified badge -->
+          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="32" cy="32" r="20" fill="#dcfce7" stroke="#16a34a"/>
+            <path d="M22 33l7 7 15-15" stroke="#16a34a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="#86efac" stroke-dasharray="6 6"/>
+          </svg>
+        </div>
+        <div class="step-head">3. Aktivasi Akun</div>
+        <div class="step-desc">Admin mengkonfirmasi pembayaran Anda. Akun Anda langsung diaktifkan! Akses konten premium sekarang.</div>
+      </div>
+    </div>
+    <div class="pay-cta">
+      <a class="btn upgrade" :href="whatsLink" target="_blank" rel="noopener noreferrer">Upgrade Akun</a>
+    </div>
+  </div>
+
+  <!-- Head Categories (cards) -->
+  <section class="card head-cards" v-if="headCategories.length">
+    <h2 style="margin:0 0 10px;">Categories</h2>
+    <div class="grid heads-grid" style="gap:16px;">
+      <router-link v-for="h in headCategories" :key="h.id" class="head-card" :to="`/categories?headId=${h.id}`">
+        <div class="banner-box">
+          <img v-if="h.banner_url || h.cover_url || h.image_url" class="banner" :src="resolveImg(h.banner_url || h.cover_url || h.image_url)" alt="banner" loading="lazy" />
+        </div>
+        <div class="head-title">{{ h.name }}</div>
+        <div class="head-desc">{{ h.description || '—' }}</div>
+      </router-link>
+    </div>
+  </section>
+  <!-- Zoom Section -->
+  <section class="zoom-section card">
+      <div class="zoom-head">
+        <h2 style="margin:0;">Zoom Discussion</h2>
+      </div>
+      <div class="zoom-slider">
+        <button class="nav prev" @click="prevZoom">‹</button>
+        <div class="viewport">
+          <div class="track" :style="{ transform: `translateX(-${zoomIndex * 100}%)` }">
+            <div v-for="(page, pi) in zoomPages" :key="pi" class="slide">
+              <div class="zgrid" :style="{ '--cols': zoomPerPage }">
+                <template v-for="(c, i) in page" :key="i">
+                  <div v-if="c.type==='item'" class="zoom-card" @click="$router.push(`/zoom/${c.data.id}`)">
+                    <div class="thumb" v-if="c.data.image_url"><img :src="resolveImg(c.data.image_url)" alt="presenter" /></div>
+                    <div class="inner">
+                      <div class="row top"><span class="chip" :class="c.data.status==='Upcoming' ? 'up' : 'done'">{{ c.data.status }}</span><span class="date-badge">📅 {{ formatLocal(c.data.start_at) }}</span></div>
+                      <div
+                        class="cat-badge"
+                        v-if="c.data.category_id"
+                        :style="{
+                          background: 'transparent',
+                          color: bandColor(categoryName(c.data.category_id)),
+                          borderColor: bandColor(categoryName(c.data.category_id))
+                        }"
+                      >
+                        {{ categoryName(c.data.category_id) }}
+                      </div>
+                      <div class="title" :title="c.data.title">{{ c.data.title }}</div>
+                      <div class="presenter">{{ c.data.presenter_name }}</div>
+                      <div class="desc" v-if="c.data.description">{{ c.data.description }}</div>
+                    </div>
+                  </div>
+                  <div v-else class="zoom-card see-more">
+                    <div class="see-more-inner">
+                      <div class="see-title">Lihat lebih banyak diskusi</div>
+                      <router-link to="/zoom"><button class="see-all-btn orange">Lihat semua</button></router-link>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="nav next" @click="nextZoom">›</button>
+      </div>
+      <div v-if="zoomCards.length===0" class="empty">Belum ada jadwal.</div>
+    </section>
     <section class="card tests-section">
       <div class="home-head">
-        <h2 style="margin:0;">Pilihan Test Untukmu</h2>
+        <h2 style="margin:0;">Pilihan Test Gratis Untukmu</h2>
         <div class="chips">
           <button class="pill" :class="{ active: selectedCategoryId === null }" @click="selectCategory(null)">All Program</button>
-          <button v-for="c in categories" :key="c.id" class="pill outline" :class="{ active: selectedCategoryId === c.id }" @click="selectCategory(c.id)">{{ c.name }}</button>
+          <button v-for="c in headCategories" :key="c.id" class="pill outline" :class="{ active: selectedCategoryId === c.id }" @click="selectCategory(c.id)">{{ c.name }}</button>
         </div>
         <div class="search-sort">
           <input v-model="homeSearch" class="input search" type="text" placeholder="Cari set..." />
@@ -22,6 +140,9 @@
       <div class="grid cols-4 grid-spacious" style="margin-top:18px;">
         <div v-for="item in homeDisplayed" :key="item.set.id" class="set-card">
           <span class="color-dot" :style="{ background: bandColor(item.category.name) }"></span>
+          <span class="plan-badge" :class="(item.set.access_level||'free')==='paid' ? 'paid' : 'free'">
+            {{ (item.set.access_level||'free')==='paid' ? 'Paid' : 'Free' }}
+          </span>
           <div class="content flex-1">
             <div class="cat-line">
               <template v-if="brandFor(item.category.id).icon_url">
@@ -42,6 +163,9 @@
             </router-link>
           </div>
         </div>
+      </div>
+      <div class="see-all-wrap">
+        <router-link to="/categories"><button class="see-all-btn orange">Lihat semua</button></router-link>
       </div>
     </section>
     <!-- FAQ Section -->
@@ -93,14 +217,38 @@
         </div>
       </div>
     </section>
-  </div>
 </template>
 <script setup>
 import { onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
 import PromoCarousel from '../components/PromoCarousel.vue'
 import api from '../api/client'
+import { buildWaLink } from '../config/whatsapp'
 
+const whatsLink = buildWaLink('Halo Admin, saya ingin upgrade akun premium.')
 const categories = ref([])
+const headCategories = computed(() => categories.value.filter(c => !c.parent_id))
+const headHero = computed(() => {
+  const h = headCategories.value[0]
+  if (!h) return null
+  // Try several likely fields for banner image; fallback to empty to use CSS gradient
+  const banner = h.banner_url || h.cover_url || h.image_url || ''
+  return { title: h.name, banner }
+})
+// Zoom slider state
+const zoomItems = ref([])
+const zoomIndex = ref(0)
+const zoomPerPage = ref(3) // desktop default
+const zoomCards = computed(() => {
+  const first10 = (zoomItems.value || []).slice(0, 10)
+  const cards = first10.map(z => ({ type: 'item', data: z }))
+  return cards.concat([{ type: 'more' }])
+})
+const zoomPages = computed(() => {
+  const per = Math.max(1, zoomPerPage.value)
+  const out = []
+  for (let i = 0; i < zoomCards.value.length; i += per){ out.push(zoomCards.value.slice(i, i + per)) }
+  return out
+})
 // track measured heights for smooth slide
 const faqInnerRefs = ref({})
 const faqHeights = ref([])
@@ -143,8 +291,18 @@ const faqs = ref([
 onMounted(async () => {
   const { data: cats } = await api.get('/categories/')
   categories.value = cats
+  // load zoom discussions
+  try{
+    const { data: zoom } = await api.get('/zoom-discussions/')
+    // upcoming first (GMT+7 is handled by backend status), then latest
+    zoomItems.value = zoom.sort((a,b)=>{
+      if (a.status===b.status) return String(b.start_at).localeCompare(String(a.start_at))
+      return a.status==='Upcoming' ? -1 : 1
+    })
+  } catch {}
   // load branding
   try { branding.value = JSON.parse(localStorage.getItem('category_branding')||'{}') } catch { branding.value = {} }
+  // Read branding illustration (same key used on Auth page)
   // for each category, fetch sets and count questions per set
   await Promise.all(cats.map(async (c) => {
     const { data: sets } = await api.get('/sets/', { params: { category_id: c.id } })
@@ -176,21 +334,43 @@ function resolveImg(src){
   return path
 }
 
+// Zoom slider controls + time formatter (GMT+7)
+function nextZoom(){ if (zoomPages.value.length===0) return; zoomIndex.value = Math.min(zoomIndex.value + 1, zoomPages.value.length - 1) }
+function prevZoom(){ if (zoomPages.value.length===0) return; zoomIndex.value = Math.max(zoomIndex.value - 1, 0) }
+function formatLocal(s){ try { return new Date(s).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }) } catch { return s } }
+
+function updateZoomPerPage(){
+  const w = window.innerWidth
+  if (w < 900) zoomPerPage.value = 1
+  else if (w < 1200) zoomPerPage.value = 2
+  else zoomPerPage.value = 3
+  const maxIndex = Math.max(0, zoomPages.value.length - 1)
+  if (zoomIndex.value > maxIndex) zoomIndex.value = maxIndex
+}
+
+function categoryName(id){
+  const c = (categories.value || []).find(x => x.id === Number(id))
+  return c ? c.name : ''
+}
+
 function rebuildGrid(){
-  const items = []
-  const catList = selectedCategoryId.value === null
-    ? categories.value
-    : categories.value.filter(c => c.id === selectedCategoryId.value)
-  catList.forEach(c => {
+  // Build from ALL categories (sets belong to sub categories), then filter by selected head if any
+  let items = []
+  categories.value.forEach(c => {
     (setsByCategory.value[c.id] || []).forEach(s => {
       items.push({ category: c, set: s })
     })
   })
+  if (selectedCategoryId.value !== null){
+    const headId = selectedCategoryId.value
+    items = items.filter(it => it.category.parent_id === headId || it.category.id === headId)
+  }
   gridItems.value = items
 }
 
 const homeDisplayed = computed(() => {
-  let arr = gridItems.value
+  // Only FREE sets, latest first, limit 20
+  let arr = gridItems.value.filter(it => String(it.set.access_level || 'free') === 'free')
   const q = homeSearch.value.toLowerCase().trim()
   if (q){ arr = arr.filter(it => String(it.set.title||'').toLowerCase().includes(q)) }
   const byTitleAsc = (a,b) => String(a.set.title||'').localeCompare(String(b.set.title||''))
@@ -201,7 +381,7 @@ const homeDisplayed = computed(() => {
     case 'oldest': arr = [...arr].sort(byIdAsc); break
     case 'recent': default: arr = [...arr].sort((a,b)=>byIdAsc(b,a)); break
   }
-  return arr.slice(0, 12)
+  return arr.slice(0, 20)
 })
 
 const displayedItems = computed(() => {
@@ -316,7 +496,9 @@ function measureFaqHeights(){
 }
 onMounted(() => {
   updatePerPage();
+  updateZoomPerPage();
   window.addEventListener('resize', updatePerPage);
+  window.addEventListener('resize', updateZoomPerPage);
   startAuto();
   nextTick(() => {
     measureFaqHeights()
@@ -324,14 +506,117 @@ onMounted(() => {
     if (testiIndex.value >= n) testiIndex.value = n - 1
   })
 })
-onUnmounted(() => { window.removeEventListener('resize', updatePerPage); stopAuto() })
+onUnmounted(() => { window.removeEventListener('resize', updatePerPage); window.removeEventListener('resize', updateZoomPerPage); stopAuto() })
 </script>
 
 <style scoped>
+
+/* Categories: horizontal cards aligned like CategoryHeads.vue */
+.grid.heads-grid { display: grid; }
+
+/* If you want a single column of wide, horizontal cards instead of 3 columns: */
+.heads-grid { grid-template-columns: 1fr; }
+
+/* Keep banner aspect and spacing identical */
+.banner-box {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #f1f5f9;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.banner { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* Head categories cards (match CategoryHeads.vue) */
+.head-cards { margin: 16px 0; }
+.heads-grid { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 900px){ .heads-grid{ grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 640px){ .heads-grid{ grid-template-columns: 1fr; } }
+.head-card {
+  cursor: pointer;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+}
+.head-card:hover { box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
+.banner-box {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #f1f5f9;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.banner { width: 100%; height: 100%; object-fit: contain; display: block; }
+.head-title { font-weight: 800; color: #0f172a; font-size: 18px; line-height: 1.25; }
+.head-desc { color: #64748b; margin-top: 6px; font-size: 14px; }
+@media (max-width: 900px) { .heads-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 640px) { .heads-grid { grid-template-columns: 1fr; } }
+
+
+/* Override grid vertical margins for heads grid */
+.heads-grid > * + *{ margin-top: 0 !important; }
+
+/* Zoom section */
+.zoom-section{ overflow:hidden; }
+.zoom-slider{ position:relative; display:flex; align-items:center; gap:12px; padding:6px 0; }
+.zoom-slider .viewport{ overflow:hidden; width:100%; }
+.zoom-slider .track{ display:flex; transition: transform .35s ease; }
+.zoom-slider .slide{ min-width:100%; padding:14px 8px; }
+.zgrid{ display:grid; gap:12px; align-items:stretch; width:100%; grid-template-columns: repeat(var(--cols, 3), 1fr); }
+.zoom-card{ background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.05); width:100%; }
+.zoom-card .thumb{ width:100%; height: 160px; background:#f1f5f9; }
+.zoom-card .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+@media (max-width: 900px){ .zoom-card .thumb{ height: 140px; } }
+.zoom-card .inner{ padding:12px; display:flex; flex-direction:column; gap:8px; }
+.zoom-card .row.top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.zoom-card .title{ font-weight:800; color:#0f172a; line-height:1.4; }
+.zoom-card .presenter{ font-weight:700; color:#334155; font-size:14px; line-height:1.5; }
+.zoom-card .desc{ color:#64748b; font-size:14px; line-height:1.6; overflow:hidden; display:-webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.cat-badge{ font-size:12px; display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #e2e8f0; margin:2px 0 6px; align-self:flex-start; }
+.zoom-card.see-more{ display:flex; align-items:center; justify-content:center; }
+.see-more-inner{ padding:24px; text-align:center; display:flex; flex-direction:column; gap:10px; }
+.see-title{ font-weight:800; color:#0f172a; }
+.chip{ font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #e2e8f0; }
+.chip.up{ background:#ecfeff; color:#155e75; border-color:#a5f3fc; }
+.chip.done{ background:#f8fafc; color:#334155; }
+.date-badge{ font-size:12px; color:#0f172a; background:#fff; border:1px solid #e2e8f0; border-radius:999px; padding:2px 8px; }
+
 /* Header controls layout */
 .home-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+
+/* Pay steps */
+.pay-steps{ margin:18px 0; }
+.pay-title{ margin:0 0 10px; text-align:center; }
+.steps{ display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
+.step{ background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.illo{ width:100%; height:120px; display:flex; align-items:center; justify-content:center; }
+.illo svg{ width:120px; height:120px; }
+.step-head{ font-weight:800; color:#0f172a; }
+.step-desc{ color:#475569; line-height:1.6; }
+.pay-cta{ display:flex; justify-content:center; margin-top:10px; }
+.btn.upgrade{ background:#f97316; color:#fff; border:none; padding:10px 16px; border-radius:10px; text-decoration:none; font-weight:800; }
+@media (max-width: 900px){ .steps{ grid-template-columns: 1fr; } .illo{ height:96px; } .illo svg{ width:96px; height:96px; } }
 .home-head .chips{ display:flex; gap:8px; flex-wrap:wrap; }
 .home-head .search-sort{ margin-left:auto; display:flex; gap:8px; align-items:center; }
+.see-all-btn{ background:white; color:#2563eb; border:1px solid #2563eb; padding:8px 12px; border-radius:999px; font-weight:700; cursor:pointer; }
+.see-all-btn:hover{ background:#2563eb; color:white; }
+.see-all-btn.orange{ background:#f97316; border-color:#f97316; color:white; }
+.see-all-btn.orange:hover{ background:#ea580c; border-color:#ea580c; }
+.see-all-wrap{ display:flex; justify-content:center; margin-top:10px; }
 @media (max-width: 640px){
   .home-head h2{ width:100%; }
   .home-head .search-sort{ order:3; width:100%; margin-left:0; }
@@ -353,6 +638,9 @@ onUnmounted(() => { window.removeEventListener('resize', updatePerPage); stopAut
 .set-card { position:relative; background:white; border-radius:14px; box-shadow: 0 4px 10px rgba(2,6,23,0.06), 0 1px 2px rgba(2,6,23,0.04); border:1px solid #e5e7eb; overflow:hidden; display:flex; flex-direction:column; transition: box-shadow .2s ease, transform .2s ease; height:100%; min-height: 230px; margin-bottom: 4px; }
 .set-card:hover{ box-shadow: 0 10px 24px rgba(2,6,23,0.10), 0 2px 6px rgba(2,6,23,0.06); }
 .color-dot{ position:absolute; right:12px; top:12px; width:10px; height:10px; border-radius:999px; box-shadow: 0 0 0 3px rgba(0,0,0,0.04); }
+.plan-badge{ position:absolute; right:12px; top:12px; font-size:12px; font-weight:800; padding:4px 8px; border-radius:999px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; }
+.plan-badge.paid{ background:#fef3c7; color:#92400e; border-color:#fde68a; }
+.plan-badge.free{ background:#ecfeff; color:#155e75; border-color:#a5f3fc; }
 .cat-line{ display:flex; align-items:center; gap:8px; min-width:0; margin-bottom:6px; color:#0f172a; font-weight:700; }
 .cat-name{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .badge-img { width:22px; height:22px; object-fit:contain; border-radius:6px; background: rgba(15,23,42,0.06); }
@@ -370,7 +658,7 @@ onUnmounted(() => { window.removeEventListener('resize', updatePerPage); stopAut
 .grid.cols-4 > *{ margin-top: 0 !important; }
 .grid.grid-spacious{ padding: 4px 2px 12px; }
 /* Ensure shadows don't spill outside the rounded section container */
-.tests-section{ overflow:hidden; }
+.tests-section{ overflow:hidden; margin-top:16px; }
 @media (max-width: 1200px){ .grid.cols-4{ grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 900px){ .grid.cols-4{ grid-template-columns: repeat(2, 1fr); } }
 /* On small screens center cards and limit their width so they don't look like long rectangles */
@@ -424,4 +712,10 @@ onUnmounted(() => { window.removeEventListener('resize', updatePerPage); stopAut
 .dot{ width:8px; height:8px; border-radius:999px; background:#cbd5e1; border:none; cursor:pointer; }
 .dot.active{ background:#2563eb; }
 @media (max-width: 900px){ .tgrid{ grid-template-columns: 1fr; } }
+/* Equalize head card heights */
+.heads-grid{ align-items:stretch; }
+.head-card{ height:100%; }
+
 </style>
+/* Fix: ensure heads grid is horizontal despite global .grid rule */
+.grid.heads-grid { display: grid; }

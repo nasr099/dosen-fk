@@ -14,11 +14,30 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     active_until = Column(DateTime(timezone=True), nullable=True)
     is_admin = Column(Boolean, default=False)
+    # free | paid
+    plan = Column(String, default="free")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     exam_sessions = relationship("ExamSession", back_populates="user")
+
+class ZoomDiscussion(Base):
+    __tablename__ = "zoom_discussions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    presenter_name = Column(String, nullable=False)
+    description = Column(Text)
+    image_url = Column(String)
+    start_at = Column(DateTime(timezone=True), nullable=False)
+    end_at = Column(DateTime(timezone=True))
+    # optional link to a sub-category
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True, index=True)
+    meeting_url = Column(String)  # protected: only for paid users
+    meeting_password = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 class Post(Base):
     __tablename__ = "posts"
 
@@ -41,10 +60,14 @@ class Category(Base):
     name = Column(String, nullable=False)
     description = Column(Text)
     is_active = Column(Boolean, default=True)
+    # Head/Sub hierarchy
+    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True, index=True)
+    banner_url = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
+    parent = relationship("Category", remote_side=[id], backref="children")
     questions = relationship("Question", back_populates="category")
     question_sets = relationship("QuestionSet", back_populates="category")
 
@@ -57,6 +80,8 @@ class QuestionSet(Base):
     description = Column(Text)
     time_limit_minutes = Column(Integer, default=60)
     is_active = Column(Boolean, default=True)
+    # free | paid
+    access_level = Column(String, default="free")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

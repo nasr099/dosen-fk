@@ -35,12 +35,55 @@ def activate_user(user_id: int, db: Session = Depends(get_db), admin_user: UserM
         raise HTTPException(status_code=404, detail="User not found")
     # Activate for 1 month (approx 30 days)
     now = datetime.now(timezone.utc)
-    user.is_active = True
+    # When activating, mark as paid; trigger will set is_active accordingly
+    try:
+        user.plan = 'paid'
+    except Exception:
+        pass
     user.active_until = now + timedelta(days=30)
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
+
+# ---------------- Plan (Free/Paid) ----------------
+class PlanPayload(BaseModel):
+    plan: str  # 'free' | 'paid'
+
+@router.patch("/{user_id}/plan", response_model=UserSchema)
+def update_plan(user_id: int, payload: PlanPayload, db: Session = Depends(get_db), admin_user: UserModel = Depends(get_current_admin_user)):
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    plan = (payload.plan or 'free').lower()
+    if plan not in ('free','paid'):
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    user.plan = plan
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+class BulkPlanPayload(BaseModel):
+    ids: List[int]
+    plan: str  # 'free' | 'paid'
+
+@router.post("/set-plan-bulk", response_model=List[UserSchema])
+def set_plan_bulk(payload: BulkPlanPayload, db: Session = Depends(get_db), admin_user: UserModel = Depends(get_current_admin_user)):
+    ids = list(set(int(i) for i in (payload.ids or [])))
+    if not ids:
+        return []
+    plan = (payload.plan or 'free').lower()
+    if plan not in ('free','paid'):
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    users = db.query(UserModel).filter(UserModel.id.in_(ids)).all()
+    for u in users:
+        u.plan = plan
+        db.add(u)
+    db.commit()
+    for u in users:
+        db.refresh(u)
+    return users
 
 # ---------------- Bulk Operations ----------------
 class IdsPayload(BaseModel):
@@ -56,8 +99,11 @@ def activate_bulk(payload: IdsPayload, db: Session = Depends(get_db), admin_user
     delta = timedelta(days=30 * (payload.months or 1))
     users = db.query(UserModel).filter(UserModel.id.in_(ids)).all()
     for u in users:
-        u.is_active = True
         u.active_until = now + delta
+        try:
+            u.plan = 'paid'
+        except Exception:
+            pass
         db.add(u)
     db.commit()
     for u in users:
@@ -71,7 +117,12 @@ def deactivate_bulk(payload: IdsPayload, db: Session = Depends(get_db), admin_us
         return []
     users = db.query(UserModel).filter(UserModel.id.in_(ids)).all()
     for u in users:
-        u.is_active = False
+        try:
+            u.plan = 'free'
+        except Exception:
+            pass
+        # Clear validity date when switching to free plan
+        u.active_until = None
         db.add(u)
     db.commit()
     for u in users:
@@ -83,9 +134,12 @@ def deactivate_user(user_id: int, db: Session = Depends(get_db), admin_user: Use
     user = db.query(UserModel).filter(UserModel.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user.is_active = False
-    # keep active_until for audit, or null it:
-    # user.active_until = None
+    try:
+        user.plan = 'free'
+    except Exception:
+        pass
+    # Clear validity date when switching to free plan
+    user.active_until = None
     db.add(user)
     db.commit()
     db.refresh(user)

@@ -16,6 +16,13 @@
           <input v-model.number="form.time_limit_minutes" type="number" min="1" class="input" />
         </div>
         <div class="row"><label><input type="checkbox" v-model="form.is_active" /> Active</label></div>
+        <div class="row">
+          <label>Access Level</label>
+          <select v-model="form.access_level" class="input">
+            <option value="free">Free</option>
+            <option value="paid">Paid</option>
+          </select>
+        </div>
       </div>
 
       <h3 style="margin-top:16px;">Questions</h3>
@@ -110,6 +117,7 @@ onMounted(async () => {
     description: setInfo.description || '',
     time_limit_minutes: setInfo.time_limit_minutes || 60,
     is_active: setInfo.is_active !== false,
+    access_level: setInfo.access_level || 'free',
     questions: qs.map(q => {
       const pr = parseRich(q.question_text)
       const a = parseRich(q.option_a)
@@ -162,6 +170,7 @@ async function save(){
     description: form.value.description,
     time_limit_minutes: form.value.time_limit_minutes,
     is_active: form.value.is_active,
+    access_level: form.value.access_level || 'free',
     questions: form.value.questions.map(q => ({
       question_text: composeRich(q._text, q._img),
       option_a: composeRich(q._a_text, q._a_img),

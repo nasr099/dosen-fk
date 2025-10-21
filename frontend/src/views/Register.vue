@@ -17,7 +17,7 @@
         <input v-model="password" type="password" class="input" minlength="6" required />
         <label>Confirm Password</label>
         <input v-model="confirmPassword" type="password" class="input" minlength="6" required />
-        <button class="btn primary full" style="margin-top:8px;">Create Account</button>
+        <button class="btn primary full" :disabled="submitting" style="margin-top:8px;">{{ submitting ? 'Creating...' : 'Create Account' }}</button>
       </form>
       <div class="or">or</div>
       <router-link to="/login" class="btn google full" style="text-align:center;">
@@ -41,6 +41,7 @@ const confirmPassword = ref('')
 const logoImg = ref('/logo.svg')
 const leftImg = ref('/med-left.svg')
 const rightImg = ref('/med-right.svg')
+const submitting = ref(false)
 
 const submit = async () => {
   // Basic validations
@@ -48,14 +49,24 @@ const submit = async () => {
     alert('Password dan konfirmasi password tidak sama.')
     return
   }
+  if (!email.value || !full_name.value || !password.value) return
   const payload = {
     email: email.value,
     full_name: full_name.value,
     password: password.value,
     phone: phone.value
   }
-  await api.post('/auth/register', payload)
-  router.push('/login')
+  try{
+    submitting.value = true
+    await api.post('/auth/register', payload)
+    router.push('/login')
+  } catch (err){
+    const msg = err?.response?.data?.detail || err?.message || 'Registration failed'
+    // Specific duplicate email case from backend: "Email already registered"
+    alert(msg)
+  } finally {
+    submitting.value = false
+  }
 }
 
 onMounted(() => {

@@ -43,6 +43,7 @@ import { ref, onMounted, computed } from 'vue'
 import api from '../api/client'
 import { useAuthStore } from '../store/auth'
 import router from '../router'
+import { buildWaLink } from '../config/whatsapp'
 
 const email = ref('')
 const password = ref('')
@@ -52,9 +53,7 @@ const logoImg = ref('/logo.svg')
 const leftImg = ref('/med-left.svg')
 const rightImg = ref('/med-right.svg')
 const showInactive = ref(false)
-const WA_NUMBER = '6285234727303'
-const waText = computed(() => `Hai Kak, Aku ${email.value || '-'} ingin melakukan aktivasi akun, terimakasih`)
-const waHref = computed(() => `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waText.value)}`)
+const waHref = computed(() => buildWaLink(`Hai Admin, saya ${email.value || '-'} ingin melakukan aktivasi/upgrade akun.`))
 
 const submit = async () => {
   try {

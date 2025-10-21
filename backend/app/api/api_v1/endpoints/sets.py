@@ -97,6 +97,7 @@ def create_set_with_questions(
         description=payload.description,
         time_limit_minutes=payload.time_limit_minutes,
         is_active=payload.is_active,
+        access_level=getattr(payload, 'access_level', 'free') or 'free',
     )
     db.add(s)
     db.commit()
