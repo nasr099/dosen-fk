@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from app.api.deps import get_current_admin_user
+from app.api.deps import get_current_admin_user, get_current_staff_user
 from app.db.base import get_db
 from app.db.models import (
     Category as CategoryModel,
@@ -33,7 +33,7 @@ def list_children(head_id: int, db: Session = Depends(get_db)):
 def create_category(
     category_in: CategoryCreate,
     db: Session = Depends(get_db),
-    admin_user=Depends(get_current_admin_user),
+    admin_user=Depends(get_current_staff_user),
 ):
     category = CategoryModel(**category_in.model_dump())
     db.add(category)
@@ -46,7 +46,7 @@ def update_category(
     category_id: int,
     category_in: CategoryUpdate,
     db: Session = Depends(get_db),
-    admin_user=Depends(get_current_admin_user),
+    admin_user=Depends(get_current_staff_user),
 ):
     category = db.query(CategoryModel).filter(CategoryModel.id == category_id).first()
     if not category:
@@ -59,7 +59,7 @@ def update_category(
 
 @router.delete("/{category_id}")
 def delete_category(
-    category_id: int, db: Session = Depends(get_db), admin_user=Depends(get_current_admin_user)
+    category_id: int, db: Session = Depends(get_db), admin_user=Depends(get_current_staff_user)
 ):
     category = db.query(CategoryModel).filter(CategoryModel.id == category_id).first()
     if not category:

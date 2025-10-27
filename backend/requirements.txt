@@ -13,3 +13,8 @@ pydantic-settings==2.1.0
 
 # For DigitalOcean Spaces (S3-compatible)
 boto3==1.34.162
+
+# For Excel import
+openpyxl==3.1.5
+Pillow==10.4.0
+openpyxl-image-loader==1.0.5

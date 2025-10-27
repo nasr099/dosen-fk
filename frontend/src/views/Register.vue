@@ -19,11 +19,7 @@
         <input v-model="confirmPassword" type="password" class="input" minlength="6" required />
         <button class="btn primary full" :disabled="submitting" style="margin-top:8px;">{{ submitting ? 'Creating...' : 'Create Account' }}</button>
       </form>
-      <div class="or">or</div>
-      <router-link to="/login" class="btn google full" style="text-align:center;">
-        <img class="gicon" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" />
-        Continue with Google
-      </router-link>
+      
     </div>
     <img class="illus right" :src="rightImg" alt="right" />
   </div>
@@ -82,10 +78,7 @@ onMounted(() => {
 .brand{ display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom:8px; }
 .logo{ height:44px; }
 .form{ display:flex; flex-direction:column; gap:8px; }
-.or{ text-align:center; color:#64748b; margin:10px 0; font-weight:600; }
 .btn.full{ width:100%; }
-.btn.google{ background:white; color:#1f2937; border:1px solid #e5e7eb; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:8px; padding:10px 16px; }
-.btn.google .gicon{ height:18px; }
 .illus{ position:absolute; bottom:0; opacity:.9; max-width: 300px; }
 .illus.left{ left: 20px; }
 .illus.right{ right: 20px; }

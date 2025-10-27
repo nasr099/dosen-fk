@@ -13,13 +13,9 @@
         <input v-model="password" type="password" class="input" required />
         <label class="remember"><input type="checkbox" v-model="remember" /> Remember me</label>
         <button class="btn primary full">Login</button>
-        <a class="link" href="#">Lupa password?</a>
+        <a class="link" href="#" @click.prevent="onForgot">Lupa password?</a>
       </form>
-      <div class="or">or</div>
-      <button class="btn google full" @click="googleSignIn">
-        <img class="gicon" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" />
-        Continue with Google
-      </button>
+      
     </div>
     <img class="illus right" :src="rightImg" alt="right" />
 
@@ -33,6 +29,21 @@
         </div>
         <div class="modal-actions">
           <button class="btn" @click="showInactive=false">Tutup</button>
+        </div>
+      </div>
+    </div>
+    <!-- Forgot password modal -->
+    <div v-if="showForgot" class="modal">
+      <div class="modal-card">
+        <div class="modal-title">Lupa password</div>
+        <div class="modal-body">
+          Untuk reset password, silakan hubungi Admin melalui WhatsApp. Admin akan membantu proses penggantian password Anda.
+          <div class="contact" style="margin-top:8px;">
+            <a :href="waForgotHref" target="_blank" rel="noopener" class="wa-btn">WhatsApp Admin</a>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="showForgot=false">Tutup</button>
         </div>
       </div>
     </div>
@@ -53,7 +64,9 @@ const logoImg = ref('/logo.svg')
 const leftImg = ref('/med-left.svg')
 const rightImg = ref('/med-right.svg')
 const showInactive = ref(false)
+const showForgot = ref(false)
 const waHref = computed(() => buildWaLink(`Hai Admin, saya ${email.value || '-'} ingin melakukan aktivasi/upgrade akun.`))
+const waForgotHref = computed(() => buildWaLink(`Halo Admin, saya ${email.value || '-'} lupa password untuk akun saya. Mohon bantu reset password.`))
 
 const submit = async () => {
   try {
@@ -77,51 +90,16 @@ const submit = async () => {
   }
 }
 
-// Google Identity Services
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+function onForgot(){
+  showForgot.value = true
+}
+
 onMounted(() => {
   // load branding from localStorage if available (always run)
   const l = localStorage.getItem('branding_logo'); if (l) logoImg.value = l
   const il = localStorage.getItem('branding_auth_left'); if (il) leftImg.value = il
   const ir = localStorage.getItem('branding_auth_right'); if (ir) rightImg.value = ir
-
-  // load Google script only when configured
-  if (GOOGLE_CLIENT_ID){
-    if (!document.getElementById('google-plat')){
-      const s = document.createElement('script')
-      s.src = 'https://accounts.google.com/gsi/client'
-      s.async = true
-      s.defer = true
-      s.id = 'google-plat'
-      document.head.appendChild(s)
-    }
-  }
 })
-
-async function googleSignIn(){
-  if (!GOOGLE_CLIENT_ID){
-    alert('Google Sign-In not configured. Set VITE_GOOGLE_CLIENT_ID in .env')
-    return
-  }
-  // Use the popup approach
-  // eslint-disable-next-line no-undef
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: async (resp) => {
-      try {
-        const { data } = await api.post('/auth/google', { id_token: resp.credential })
-        const me = await api.get('/users/me', { headers: { Authorization: `Bearer ${data.access_token}` }})
-        auth.setAuth(data.access_token, me.data)
-        router.push('/')
-      } catch (e) {
-        alert('Google login failed. Please try again.')
-        console.error(e)
-      }
-    }
-  })
-  // eslint-disable-next-line no-undef
-  google.accounts.id.prompt() // opens One Tap / prompt
-}
 </script>
 
 <style scoped>

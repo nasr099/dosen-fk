@@ -7,12 +7,8 @@
       <div class="row"><label>Published</label><input type="checkbox" v-model="form.is_published" /></div>
       <div class="row full"><label>Excerpt</label><input v-model="form.excerpt" class="input" /></div>
       <div class="row full">
-        <label>Cover URL</label>
-        <div style="display:grid; grid-template-columns: 1fr auto; gap:8px;">
-          <input v-model="form.cover_url" class="input" placeholder="/uploads/... or http(s)" />
-          <input type="file" @change="onUploadCover" />
-        </div>
-        <img v-if="form.cover_url" :src="resolveImg(form.cover_url)" alt="cover" style="max-width:320px; margin-top:8px; border-radius:6px;" />
+        <label>Cover</label>
+        <CdnUploader v-model="form.cover_url" />
       </div>
       <div class="row full">
         <label>Content</label>
@@ -32,6 +28,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api/client'
 import RichTextEditor from '../../components/RichTextEditor.vue'
+import CdnUploader from '../../components/CdnUploader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,16 +57,7 @@ onMounted(async () => {
 
 const canSave = computed(() => !!form.value.title && !!form.value.slug && !!form.value.content_html)
 
-async function onUploadCover(ev){
-  const file = ev.target.files?.[0]
-  if (!file) return
-  const fd = new FormData()
-  fd.append('file', file)
-  const { data } = await api.post('/files/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-  const url = data.url
-  const u = new URL(url)
-  form.value.cover_url = `${u.pathname}`
-}
+// cover is now handled by <CdnUploader v-model="form.cover_url" />
 
 async function save(){
   const payload = { ...form.value }

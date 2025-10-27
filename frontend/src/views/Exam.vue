@@ -6,12 +6,19 @@
     </div>
     <div class="guard-bar">
       <span class="dot" :class="{ ok: !inViolation, warn: inViolation }"></span>
-      <strong>Focus mode:</strong>
       Keep the exam in fullscreen and this tab active. Violations {{ violations }} / {{ VIOLATION_LIMIT }}.
     </div>
     <div class="exam-body">
       <div class="left">
         <div v-for="(q, idx) in questions" :key="q.id" v-show="idx === currentIndex" class="question-card">
+          <div class="q-top">
+            <div class="q-top-left"><span class="pill strong">Soal {{ idx+1 }}</span><span class="of">dari {{ questions.length }}</span></div>
+            <div class="q-top-right">
+              <span v-if="(q.question_type||'mcq')==='essay'" class="type-pill">Essay</span>
+              <span v-else-if="(q.question_type||'mcq')==='multi'" class="type-pill alt">Multi</span>
+              <span class="status" :class="statusClass(currentQuestionId)">{{ statusText(currentQuestionId) }}</span>
+            </div>
+          </div>
           <img
             v-if="parseRich(q.question_text).img"
             :src="resolveImg(parseRich(q.question_text).img)"
@@ -20,15 +27,20 @@
             @click="openLightbox(resolveImg(parseRich(q.question_text).img))"
           />
           <div class="qtext">
-            <span class="qnum">Q{{ idx+1 }}.</span>
             <span v-if="parseRich(q.question_text).text" v-html="renderHTML(parseRich(q.question_text).text)"></span>
           </div>
+          <div class="q-divider"></div>
           <div class="answers-label">Jawaban</div>
-          <div class="options grid-2">
-            <label v-for="opt in ['A','B','C','D','E']" :key="opt" class="opt">
-              <input type="radio" :name="`q_${q.id}`" :value="opt" v-model="answers[q.id]" @change="markAnswered(q.id)" />
+          <template v-if="(q.question_type||'mcq') === 'essay'">
+            <textarea class="essay-input" v-model="answers[q.id]" @input="markAnswered(q.id)" placeholder="Ketik jawaban Anda di sini..."></textarea>
+          </template>
+          <div v-else-if="(q.question_type||'mcq') === 'multi'" class="options grid-2">
+            <label v-for="opt in availableOptions(q)" :key="opt" class="opt" :class="{ selected: (answers[q.id]||[]).includes(opt) }">
+              <input class="radio" type="checkbox" :name="`q_${q.id}_${opt}`" :value="opt" :checked="(answers[q.id]||[]).includes(opt)"
+                     @change="toggleMultiAnswer(q.id, opt, $event)" />
+              <span class="letter">{{ opt }}</span>
               <span class="opt-content">
-                <span v-if="parseOption(q, opt).text" v-html="renderHTML(parseOption(q, opt).text)"></span>
+                <span class="opt-text" v-if="parseOption(q, opt).text" v-html="renderHTML(parseOption(q, opt).text)"></span>
                 <img
                   v-if="parseOption(q, opt).img"
                   :src="resolveImg(parseOption(q, opt).img)"
@@ -38,7 +50,23 @@
                 />
               </span>
             </label>
-        </div>
+          </div>
+          <div v-else class="options grid-2">
+            <label v-for="opt in availableOptions(q)" :key="opt" class="opt" :class="{ selected: answers[q.id]===opt }">
+              <input class="radio" type="radio" :name="`q_${q.id}`" :value="opt" v-model="answers[q.id]" @change="markAnswered(q.id)" />
+              <span class="letter">{{ opt }}</span>
+              <span class="opt-content">
+                <span class="opt-text" v-if="parseOption(q, opt).text" v-html="renderHTML(parseOption(q, opt).text)"></span>
+                <img
+                  v-if="parseOption(q, opt).img"
+                  :src="resolveImg(parseOption(q, opt).img)"
+                  :alt="`option ${opt} image`"
+                  class="opt-img"
+                  @click="openLightbox(resolveImg(parseOption(q, opt).img))"
+                />
+              </span>
+            </label>
+          </div>
         </div>
         <div class="nav-row">
           <button class="btn secondary" :disabled="currentIndex===0" @click="prev">‹ Sebelumnya</button>
@@ -57,9 +85,11 @@
               v-for="(q, idx) in questions"
               :key="q.id"
               class="cell"
-              :class="statusClass(q.id)"
+              :class="[statusClass(q.id), (q.question_type||'mcq')]"
               @click="go(idx)"
-            >{{ idx+1 }}</button>
+            >
+              {{ idx+1 }}
+            </button>
           </div>
         </div>
       </div>
@@ -248,6 +278,14 @@ function parseOption(q, opt){
   return parseRich(raw)
 }
 
+function availableOptions(q){
+  const opts = ['A','B','C','D','E']
+  return opts.filter(letter => {
+    const o = parseOption(q, letter)
+    return (o.text && String(o.text).trim()) || (o.img && String(o.img).trim())
+  })
+}
+
 function resolveImg(src){
   if (!src) return ''
   // If already absolute, return as is
@@ -285,10 +323,32 @@ function toggleFlag(qid){
 }
 function isFlagged(qid){ return !!flagged.value[qid] }
 function markAnswered(qid){ /* trigger UI update via answers binding */ }
+function toggleMultiAnswer(qid, letter, ev){
+  const cur = Array.isArray(answers.value[qid]) ? answers.value[qid].slice() : []
+  if (ev.target.checked){
+    if (!cur.includes(letter)) cur.push(letter)
+  } else {
+    const i = cur.indexOf(letter)
+    if (i !== -1) cur.splice(i,1)
+  }
+  answers.value[qid] = cur
+  markAnswered(qid)
+}
 function statusClass(qid){
   if (isFlagged(qid)) return 'flagged'
-  if (answers.value[qid]) return 'answered'
+  const val = answers.value[qid]
+  if (typeof val === 'string'){
+    if (val && val.trim() !== '') return 'answered'
+  } else if (val){
+    return 'answered'
+  }
   return 'pending'
+}
+
+function statusText(qid){
+  if (isFlagged(qid)) return 'Ragu-ragu'
+  if (answers.value[qid]) return 'Terjawab'
+  return 'Belum Dijawab'
 }
 
 onMounted(async () => {
@@ -405,9 +465,23 @@ async function submit(){
   let elapsed = (timeLimitInitial.value - remaining)
   if (elapsed < 0) elapsed = 0
   if (elapsed > timeLimitInitial.value) elapsed = timeLimitInitial.value
+  const qTypeMap = Object.fromEntries(questions.value.map(q => [q.id, q.question_type || 'mcq']))
   const payload = {
     exam_session_id: examSessionId.value,
-    answers: Object.keys(answers.value).map(qid => ({ question_id: Number(qid), selected_answer: answers.value[qid] })),
+    answers: Object.keys(answers.value).map(qid => {
+      const id = Number(qid)
+      const t = qTypeMap[id] || 'mcq'
+      const val = answers.value[qid]
+      let selected
+      if (t === 'multi'){
+        selected = Array.isArray(val) ? val.map(x => String(x).toUpperCase()).sort().join(',') : ''
+      } else if (typeof val === 'string'){
+        selected = val
+      } else {
+        selected = ''
+      }
+      return { question_id: id, selected_answer: selected }
+    }),
     time_taken_minutes: Number(elapsed.toFixed(2)),
   }
   try{
@@ -474,14 +548,32 @@ onMounted(async () => {
 .cell.answered{ background:#dcfce7; border-color:#16a34a; color:#065f46; }
 .cell.flagged{ background:#ffedd5; border-color:#f59e0b; color:#92400e; }
 .cell.pending{ background:#f1f5f9; color:#475569; }
-.question-card{ background:white; border:1px solid #e2e8f0; border-radius:12px; padding:12px; }
+.cell.essay{ position:relative; }
+.cell.essay::after{ content:'✎'; position:absolute; top:-6px; right:-6px; background:#fde68a; color:#92400e; border:1px solid #f59e0b; width:16px; height:16px; font-size:11px; line-height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+.cell.multi{ position:relative; }
+.cell.multi::after{ content:'M'; position:absolute; top:-6px; right:-6px; background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; width:16px; height:16px; font-size:11px; line-height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; }
+.question-card{ background:white; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
+.q-top{ display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background: linear-gradient(90deg, #4f46e5, #6366f1); color:white; }
+.q-top .pill.strong{ background:rgba(255,255,255,.2); color:#fff; border-radius:10px; padding:4px 10px; font-weight:800; }
+.q-top .of{ margin-left:8px; opacity:.9; }
+.q-top .status{ background:rgba(255,255,255,.2); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:999px; padding:4px 10px; font-weight:700; }
+.q-top .status.answered{ background:#dcfce7; color:#065f46; border-color:#bbf7d0; }
+.q-top .status.flagged{ background:#ffedd5; color:#92400e; border-color:#fed7aa; }
+.q-top .type-pill{ background:#fde68a; color:#92400e; border:1px solid #f59e0b; border-radius:999px; padding:4px 10px; font-weight:800; margin-right:8px; }
+.qtext{ padding:16px 16px 6px; font-weight:500; line-height:1.85; letter-spacing:0.1px; }
+.q-divider{ height:1px; background:#e5e7eb; margin:8px 12px 6px; }
+.answers-label{ padding:6px 16px 10px; font-weight:700; }
 .qtext{ margin-top:8px; font-weight:400; line-height:1.85; letter-spacing:0.1px; }
 .answers-label{ margin-top:16px; margin-bottom:10px; font-weight:700; }
-.opt{ display:flex; gap:8px; align-items:flex-start; }
-.opt{ padding:8px 10px; border-radius:10px; }
-.opt-content{ display:flex; flex-direction:column; gap:10px; line-height:1.75; }
-.opt-content > span:first-child{ display:block; }
-.options.grid-2{ display:grid; grid-template-columns: 1fr 1fr; column-gap:24px; row-gap:16px; }
+.opt{ display:flex; gap:12px; align-items:flex-start; border:1px solid #e2e8f0; background:#fff; padding:14px 16px; border-radius:12px; transition: box-shadow .15s ease, border-color .15s ease, background .15s ease; }
+.opt:hover{ box-shadow: 0 6px 18px rgba(2,6,23,0.06); border-color:#cbd5e1; }
+.opt.selected{ border-color:#6366f1; background:#eef2ff; box-shadow: 0 8px 20px rgba(99,102,241,0.15); }
+.radio{ margin:3px 2px 0 0; }
+.letter{ display:inline-flex; width:28px; height:28px; border-radius:8px; background:#f1f5f9; align-items:center; justify-content:center; font-weight:800; color:#0f172a; flex: 0 0 28px; }
+.opt-content{ display:flex; flex-direction:column; gap:12px; line-height:1.85; flex: 1; }
+.opt-content > span:first-child{ display:block; white-space:normal; word-break:break-word; }
+.options.grid-2{ display:grid; grid-template-columns: 1fr; row-gap:16px; }
+.essay-input{ width:100%; min-height:140px; padding:12px 14px; border:1px solid #e2e8f0; border-radius:10px; font: inherit; line-height:1.7; }
 .nav-row{ display:flex; justify-content:space-between; gap:8px; }
 .btn.warn{ background:#f59e0b; color:white; border:none; }
 .q-img { max-width: 100%; max-height: 240px; width: auto; height: auto; margin:10px auto 2px; display:block; border-radius:8px; cursor: zoom-in; object-fit: contain; }

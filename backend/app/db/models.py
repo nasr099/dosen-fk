@@ -14,6 +14,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     active_until = Column(DateTime(timezone=True), nullable=True)
     is_admin = Column(Boolean, default=False)
+    # teacher/staff role: limited admin access
+    is_teacher = Column(Boolean, default=False)
     # free | paid
     plan = Column(String, default="free")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -113,12 +115,15 @@ class Question(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     question_set_id = Column(Integer, ForeignKey("question_sets.id"), nullable=True)
     question_text = Column(Text, nullable=False)
+    # 'mcq' | 'essay' (default 'mcq')
+    question_type = Column(String, default="mcq")
     option_a = Column(Text, nullable=False)
     option_b = Column(Text, nullable=False)
     option_c = Column(Text, nullable=False)
     option_d = Column(Text, nullable=False)
     option_e = Column(Text, nullable=False)
-    correct_answer = Column(String(1), nullable=False)  # A, B, C, D, or E
+    # For 'mcq': single letter A-E; for 'multi': comma-separated letters e.g., "A,C,E"
+    correct_answer = Column(Text, nullable=False)
     explanation = Column(Text)
     is_featured = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
@@ -157,13 +162,27 @@ class ExamAnswer(Base):
     id = Column(Integer, primary_key=True, index=True)
     exam_session_id = Column(Integer, ForeignKey("exam_sessions.id"), nullable=False)
     question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
-    selected_answer = Column(String(1))  # A, B, C, D, E, or null if not answered
+    # For MCQ: stores letter A-E; For essay: stores free text
+    selected_answer = Column(Text)  # nullable by default
     is_correct = Column(Boolean, default=False)
     answered_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
     exam_session = relationship("ExamSession", back_populates="exam_answers")
     question = relationship("Question", back_populates="exam_answers")
+
+
+class EssayGrade(Base):
+    __tablename__ = "essay_grades"
+
+    id = Column(Integer, primary_key=True, index=True)
+    exam_answer_id = Column(Integer, ForeignKey("exam_answers.id"), nullable=False, index=True)
+    # 0-100 scale
+    score = Column(Integer, nullable=False)
+    status = Column(String, default="approved")  # approved | partial | incorrect
+    notes = Column(Text)
+    graded_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    graded_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class PromoBanner(Base):
     __tablename__ = "promo_banners"

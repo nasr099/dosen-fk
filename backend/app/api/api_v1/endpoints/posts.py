@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.api.deps import get_current_admin_user
+from app.api.deps import get_current_admin_user, get_current_staff_user
 from app.db.base import get_db
 from app.db.models import Post as PostModel
 from app.schemas.post import Post as PostSchema, PostCreate, PostUpdate
@@ -34,7 +34,7 @@ def get_post(slug: str, db: Session = Depends(get_db)):
     return p
 
 @router.post("/", response_model=PostSchema)
-def create_post(payload: PostCreate, db: Session = Depends(get_db), admin=Depends(get_current_admin_user)):
+def create_post(payload: PostCreate, db: Session = Depends(get_db), admin=Depends(get_current_staff_user)):
     exists = db.query(PostModel).filter(PostModel.slug == payload.slug).first()
     if exists:
         raise HTTPException(status_code=400, detail="Slug already exists")
@@ -48,7 +48,7 @@ def create_post(payload: PostCreate, db: Session = Depends(get_db), admin=Depend
     return p
 
 @router.put("/{post_id}", response_model=PostSchema)
-def update_post(post_id: int, payload: PostUpdate, db: Session = Depends(get_db), admin=Depends(get_current_admin_user)):
+def update_post(post_id: int, payload: PostUpdate, db: Session = Depends(get_db), admin=Depends(get_current_staff_user)):
     p = db.query(PostModel).filter(PostModel.id == post_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -66,7 +66,7 @@ def update_post(post_id: int, payload: PostUpdate, db: Session = Depends(get_db)
     return p
 
 @router.delete("/{post_id}")
-def delete_post(post_id: int, db: Session = Depends(get_db), admin=Depends(get_current_admin_user)):
+def delete_post(post_id: int, db: Session = Depends(get_db), admin=Depends(get_current_staff_user)):
     p = db.query(PostModel).filter(PostModel.id == post_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Post not found")

@@ -28,6 +28,21 @@ def get_user(user_id: int, db: Session = Depends(get_db), admin_user: UserModel 
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
+# ---------------- Teacher Role ----------------
+class TeacherPayload(BaseModel):
+    is_teacher: bool
+
+@router.patch("/{user_id}/teacher", response_model=UserSchema)
+def set_teacher(user_id: int, payload: TeacherPayload, db: Session = Depends(get_db), admin_user: UserModel = Depends(get_current_admin_user)):
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_teacher = bool(payload.is_teacher)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
 @router.post("/{user_id}/activate", response_model=UserSchema)
 def activate_user(user_id: int, db: Session = Depends(get_db), admin_user: UserModel = Depends(get_current_admin_user)):
     user = db.query(UserModel).filter(UserModel.id == user_id).first()

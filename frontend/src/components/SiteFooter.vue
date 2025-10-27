@@ -59,10 +59,13 @@ const footer = ref({
   tagline: 'Practice, learn, and ace your exams. Built for medical students and professionals.',
   address: 'Surabaya, Indonesia',
   phone: '+62 852-3472-7303',
-  email: 'support@medexam.app',
+  email: 'medexamid@gmail.com',
   version: 'v1.0.0',
   // Only active links within the site
-  program: [ { label:'Programs', url:'/categories' } ],
+  program: [
+    { label:'Categories', url:'/categories' },
+    { label:'Zoom Discussions', url:'/zoom' },
+  ],
   product: [],
   support: [
     { label:'FAQ', url:'/#faq' },

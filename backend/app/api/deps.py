@@ -62,3 +62,13 @@ def get_current_admin_user(
             status_code=400, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+def get_current_staff_user(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    """Allow admin OR teacher (staff) accounts."""
+    if not (getattr(current_user, 'is_admin', False) or getattr(current_user, 'is_teacher', False)):
+        raise HTTPException(
+            status_code=400, detail="The user doesn't have enough privileges"
+        )
+    return current_user

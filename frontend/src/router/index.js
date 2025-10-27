@@ -26,6 +26,8 @@ import AdminTeam from '../views/admin/AdminTeam.vue'
 import AdminBlogList from '../views/admin/AdminBlogList.vue'
 import AdminBlogEdit from '../views/admin/AdminBlogEdit.vue'
 import AdminZoom from '../views/admin/AdminZoom.vue'
+import AdminEssayGrading from '../views/admin/AdminEssayGrading.vue'
+import AdminAnalytics from '../views/admin/AdminAnalytics.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -56,6 +58,8 @@ const routes = [
   { path: '/admin/blog/new', component: AdminBlogEdit, props: { isNew: true } },
   { path: '/admin/blog/:postId', component: AdminBlogEdit, props: true },
   { path: '/admin/zoom', component: AdminZoom },
+  { path: '/admin/essays', component: AdminEssayGrading },
+  { path: '/admin/analytics', component: AdminAnalytics },
 ]
 
 const router = createRouter({
@@ -76,9 +80,26 @@ router.beforeEach((to, from, next) => {
     // Read user from localStorage to avoid requiring Pinia instance here
     let user = null
     try { user = JSON.parse(localStorage.getItem('user') || 'null') } catch { user = null }
-    const isAdmin = user && user.is_admin === true
-    if (!isAdmin){
+    const isAdmin = !!(user && user.is_admin === true)
+    const isTeacher = !!(user && user.is_teacher === true)
+
+    if (!isAdmin && !isTeacher){
       return next('/admin/login')
+    }
+    // Teachers are limited to a subset of admin pages
+    if (isTeacher && !isAdmin){
+      const allowed = [
+        '/admin/categories',
+        '/admin/questions',
+        '/admin/sets',
+        '/admin/essays',
+        '/admin/zoom',
+        '/admin/blog',
+      ]
+      const ok = allowed.some(p => to.path === p || to.path.startsWith(p + '/'))
+      if (!ok){
+        return next('/admin/categories')
+      }
     }
   }
   return next()

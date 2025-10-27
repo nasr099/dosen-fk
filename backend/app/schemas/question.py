@@ -29,6 +29,8 @@ class Category(CategoryBase):
 
 class QuestionBase(BaseModel):
     question_text: str
+    # 'mcq' | 'essay'
+    question_type: str = "mcq"
     option_a: str
     option_b: str
     option_c: str
@@ -66,6 +68,7 @@ class Question(QuestionBase):
 class QuestionForExam(BaseModel):
     id: int
     question_text: str
+    question_type: str = "mcq"
     option_a: str
     option_b: str
     option_c: str

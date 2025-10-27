@@ -26,11 +26,15 @@ const submit = async () => {
   params.append('password', password.value)
   const { data } = await api.post('/auth/login', params)
   const me = await api.get('/users/me', { headers: { Authorization: `Bearer ${data.access_token}` }})
-  if (!me.data.is_admin) {
-    alert('Not an admin')
+  const isAdmin = me.data.is_admin === true
+  const isTeacher = me.data.is_teacher === true
+  if (!isAdmin && !isTeacher) {
+    alert('Not authorized')
     return
   }
   auth.setAuth(data.access_token, me.data)
-  router.push('/admin')
+  // Teachers go to a permitted page; admins go to /admin/users
+  if (isAdmin) router.push('/admin/users')
+  else router.push('/admin/categories')
 }
 </script>

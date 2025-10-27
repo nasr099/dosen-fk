@@ -8,7 +8,7 @@ from app.db.models import ZoomDiscussion, User
 from app.schemas.zoom import (
     ZoomDiscussionCreate, ZoomDiscussionUpdate, ZoomDiscussionPublic, ZoomDiscussion as ZoomDiscussionSchema
 )
-from app.api.deps import get_current_active_user, get_current_admin_user
+from app.api.deps import get_current_active_user, get_current_staff_user
 
 router = APIRouter()
 
@@ -69,7 +69,7 @@ def get_zoom_access(
 def create_zoom_discussion(
     data: ZoomDiscussionCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin_user)
+    _: User = Depends(get_current_staff_user)
 ):
     z = ZoomDiscussion(**data.dict())
     db.add(z)
@@ -81,7 +81,7 @@ def create_zoom_discussion(
 def update_zoom_discussion(
     item_id: int, data: ZoomDiscussionUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin_user)
+    _: User = Depends(get_current_staff_user)
 ):
     z = db.query(ZoomDiscussion).filter(ZoomDiscussion.id == item_id).first()
     if not z:
@@ -97,7 +97,7 @@ def update_zoom_discussion(
 def delete_zoom_discussion(
     item_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin_user)
+    _: User = Depends(get_current_staff_user)
 ):
     z = db.query(ZoomDiscussion).filter(ZoomDiscussion.id == item_id).first()
     if not z:

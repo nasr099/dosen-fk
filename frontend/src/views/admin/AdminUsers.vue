@@ -6,6 +6,7 @@
       <select v-model="filterAdmin" class="input">
         <option value="all">All roles</option>
         <option value="admin">Admin</option>
+        <option value="teacher">Teacher</option>
         <option value="user">User</option>
       </select>
       <select v-model="sortBy" class="input">
@@ -34,6 +35,7 @@
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Name</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Phone</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Admin</th>
+          <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Teacher</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Plan</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Validity</th>
           <th style="text-align:right; border-bottom:1px solid #e2e8f0; padding:8px;">Actions</th>
@@ -46,6 +48,9 @@
           <td style="padding:8px;">{{ u.full_name }}</td>
           <td style="padding:8px; white-space:nowrap;">{{ u.phone || '-' }}</td>
           <td style="padding:8px;">{{ u.is_admin ? 'Yes' : 'No' }}</td>
+          <td style="padding:8px;">
+            <button class="btn-sm" :class="u.is_teacher ? '' : 'gray'" @click="toggleTeacher(u)">{{ u.is_teacher ? 'Yes' : 'No' }}</button>
+          </td>
           <td style="padding:8px; white-space:nowrap;">
             <span :class="['badge', u.plan==='paid' ? 'ok' : 'off']">{{ (u.plan||'free')==='paid' ? 'Paid' : 'Free' }}</span>
           </td>
@@ -103,6 +108,12 @@ async function setFree(u){
   await refresh()
 }
 
+async function toggleTeacher(u){
+  const next = !u.is_teacher
+  await api.patch(`/users/${u.id}/teacher`, { is_teacher: next })
+  await refresh()
+}
+
 const filteredSorted = computed(() => {
   let arr = [...users.value]
   // filter text
@@ -110,7 +121,9 @@ const filteredSorted = computed(() => {
   if (k) arr = arr.filter(u => [u.email, u.full_name, u.phone].some(v => String(v||'').toLowerCase().includes(k)))
   // filter role
   if (filterAdmin.value !== 'all'){
-    arr = arr.filter(u => filterAdmin.value === 'admin' ? u.is_admin : !u.is_admin)
+    if (filterAdmin.value === 'admin') arr = arr.filter(u => u.is_admin)
+    else if (filterAdmin.value === 'teacher') arr = arr.filter(u => u.is_teacher)
+    else arr = arr.filter(u => !u.is_admin && !u.is_teacher)
   }
   const cmp = (a,b, field, dir=1) => (String(a?.[field]||'')).localeCompare(String(b?.[field]||'')) * dir
   switch (sortBy.value){

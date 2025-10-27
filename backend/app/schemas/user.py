@@ -19,6 +19,7 @@ class UserUpdate(UserBase):
 class UserInDBBase(UserBase):
     id: int
     is_admin: bool
+    is_teacher: Optional[bool] = False
     created_at: datetime
     updated_at: Optional[datetime] = None
     active_until: Optional[datetime] = None

@@ -18,17 +18,28 @@
             <router-link to="/team">Team</router-link>
           </div>
         </div>
-        <div v-if="auth.isAdmin" class="dropdown" ref="adminMenuRef">
+        <div v-if="auth.isAdmin || auth.isTeacher" class="dropdown" ref="adminMenuRef">
           <a href="#" class="drop-toggle" @click.prevent="toggleAdminMenu" :aria-expanded="showAdminMenu">Admin ▾</a>
           <div class="menu" v-show="showAdminMenu">
-            <router-link to="/admin/branding">Branding</router-link>
-            <router-link to="/admin/users">Users</router-link>
-            <router-link to="/admin/categories">Categories</router-link>
-            <router-link to="/admin/questions">Questions</router-link>
-            <router-link to="/admin/promos">Promos</router-link>
-            <router-link to="/admin/zoom">Zoom Discussions</router-link>
-            <router-link to="/admin/team">Team</router-link>
-            <router-link to="/admin/blog">Blog</router-link>
+            <template v-if="auth.isAdmin">
+              <router-link to="/admin/branding">Branding</router-link>
+              <router-link to="/admin/users">Users</router-link>
+              <router-link to="/admin/categories">Categories</router-link>
+              <router-link to="/admin/questions">Questions</router-link>
+              <router-link to="/admin/essays">Essays Grading</router-link>
+              <router-link to="/admin/analytics">Analytics</router-link>
+              <router-link to="/admin/promos">Promos</router-link>
+              <router-link to="/admin/zoom">Zoom Discussions</router-link>
+              <router-link to="/admin/team">Team</router-link>
+              <router-link to="/admin/blog">Blog</router-link>
+            </template>
+            <template v-else>
+              <router-link to="/admin/categories">Categories</router-link>
+              <router-link to="/admin/questions">Questions</router-link>
+              <router-link to="/admin/essays">Essays Grading</router-link>
+              <router-link to="/admin/zoom">Zoom Discussions</router-link>
+              <router-link to="/admin/blog">Blog</router-link>
+            </template>
           </div>
         </div>
       </nav>
@@ -49,16 +60,27 @@
         <router-link to="/blog" @click="closeMobile">Blog</router-link>
         <router-link to="/#faq" @click="closeMobile">FAQ</router-link>
         <router-link to="/team" @click="closeMobile">Team</router-link>
-        <div v-if="auth.isAdmin" class="mobile-admin-links">
+        <div v-if="auth.isAdmin || auth.isTeacher" class="mobile-admin-links">
             <hr>
-            <router-link to="/admin/branding" @click="closeMobile">Branding</router-link>
-            <router-link to="/admin/users" @click="closeMobile">Users</router-link>
-            <router-link to="/admin/categories" @click="closeMobile">Categories</router-link>
-            <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
-            <router-link to="/admin/promos" @click="closeMobile">Promos</router-link>
-            <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>
-            <router-link to="/admin/team" @click="closeMobile">Team</router-link>
-            <router-link to="/admin/blog" @click="closeMobile">Blog</router-link>
+            <template v-if="auth.isAdmin">
+              <router-link to="/admin/branding" @click="closeMobile">Branding</router-link>
+              <router-link to="/admin/users" @click="closeMobile">Users</router-link>
+              <router-link to="/admin/categories" @click="closeMobile">Categories</router-link>
+              <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
+              <router-link to="/admin/essays" @click="closeMobile">Essays Grading</router-link>
+              <router-link to="/admin/analytics" @click="closeMobile">Analytics</router-link>
+              <router-link to="/admin/promos" @click="closeMobile">Promos</router-link>
+              <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>
+              <router-link to="/admin/team" @click="closeMobile">Team</router-link>
+              <router-link to="/admin/blog" @click="closeMobile">Blog</router-link>
+            </template>
+            <template v-else>
+              <router-link to="/admin/categories" @click="closeMobile">Categories</router-link>
+              <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
+              <router-link to="/admin/essays" @click="closeMobile">Essays Grading</router-link>
+              <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>
+              <router-link to="/admin/blog" @click="closeMobile">Blog</router-link>
+            </template>
             </div>
         <router-link v-if="!auth.isAuthenticated" to="/login" @click="closeMobile">Log in</router-link>
         <router-link v-if="!auth.isAuthenticated" to="/register" @click="closeMobile">Get Started</router-link>

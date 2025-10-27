@@ -49,3 +49,4 @@ def login_access_token(
 @router.post("/forgot-password")
 def forgot_password_stub():
     return {"message": "Password reset email functionality to be implemented."}
+

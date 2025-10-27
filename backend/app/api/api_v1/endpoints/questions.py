@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.api.deps import get_current_admin_user
+from app.api.deps import get_current_admin_user, get_current_staff_user
 from app.db.base import get_db
 from app.db.models import Question as QuestionModel, Category as CategoryModel
 from app.schemas.question import (
@@ -32,7 +32,7 @@ def list_questions(
 def create_question(
     question_in: QuestionCreate,
     db: Session = Depends(get_db),
-    admin_user=Depends(get_current_admin_user),
+    admin_user=Depends(get_current_staff_user),
 ):
     # validate category exists
     category = db.query(CategoryModel).filter(CategoryModel.id == question_in.category_id).first()
@@ -62,7 +62,7 @@ def update_question(
 
 @router.delete("/{question_id}")
 def delete_question(
-    question_id: int, db: Session = Depends(get_db), admin_user=Depends(get_current_admin_user)
+    question_id: int, db: Session = Depends(get_db), admin_user=Depends(get_current_staff_user)
 ):
     question = db.query(QuestionModel).filter(QuestionModel.id == question_id).first()
     if not question:

@@ -47,11 +47,50 @@ class ExamSubmission(BaseModel):
 
 class ExamResult(BaseModel):
     exam_session_id: int
-    total_questions: int
+    total_questions: int  # objective questions count (mcq + multi)
     correct_answers: int
     score_percentage: float
     time_taken_minutes: float
     answers: List[dict]  # Detailed answer results with explanations
+    # Essay grading summary
+    essay_count: Optional[int] = None
+    essay_graded_count: Optional[int] = None
+    essay_avg_score: Optional[float] = None
+
+# ---------- Essay grading ----------
+class EssayGradePayload(BaseModel):
+    score: int  # 0-100
+    status: str  # approved | partial | incorrect
+    notes: Optional[str] = None
+
+class EssayGradePublic(BaseModel):
+    id: int
+    exam_answer_id: int
+    score: int
+    status: str
+    notes: Optional[str] = None
+    graded_by: Optional[int] = None
+    graded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class EssayAnswerItem(BaseModel):
+    answer_id: int
+    session_id: int
+    user_id: int
+    user_email: str
+    set_id: Optional[int] = None
+    set_title: Optional[str] = None
+    question_id: int
+    question_text: str
+    user_answer: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    grade: Optional[EssayGradePublic] = None
+
+class EssayListResponse(BaseModel):
+    total: int
+    items: List[EssayAnswerItem]
 
 class PromoBannerBase(BaseModel):
     title: str

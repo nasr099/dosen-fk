@@ -1,59 +1,6 @@
+  .ana-chart-canvas{ height:180px !important; }
 <template>
-  <div class="profile-layout">
-    <!-- Mobile filter toggle -->
-    <div class="mobile-filter-bar">
-      <button class="btn small" @click="mobileFiltersOpen = !mobileFiltersOpen">
-        {{ mobileFiltersOpen ? 'Hide Filters' : 'Show Filters' }}
-      </button>
-    </div>
-    <!-- Left Sidebar for Filters -->
-    <aside class="filter-sidebar card" :class="{ open: mobileFiltersOpen }">
-      <h3>Filter History</h3>
-      <form @submit.prevent="applyFilters">
-        <div class="form-group">
-          <label for="search">Search</label>
-          <input id="search" type="text" v-model="searchQuery" placeholder="Search by set name" />
-        </div>
-        <div class="form-group">
-          <label for="test-set">Test Set</label>
-          <select id="test-set" v-model="selectedSet">
-            <option value="">All Sets</option>
-            <option v-for="s in allSets" :key="s" :value="s">{{ s }}</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="start-date">Start Date</label>
-            <input type="date" id="start-date" v-model="startDate">
-          </div>
-          <div class="form-group">
-            <label for="end-date">End Date</label>
-            <input type="date" id="end-date" v-model="endDate">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="sort-by">Sort By</label>
-            <select id="sort-by" v-model="sortBy">
-              <option value="date">Completed Date</option>
-              <option value="score">Score</option>
-              <option value="set">Set Name</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="sort-dir">Order</label>
-            <select id="sort-dir" v-model="sortDir">
-              <option value="desc">Descending</option>
-              <option value="asc">Ascending</option>
-            </select>
-          </div>
-        </div>
-        <div class="filter-actions">
-          <button type="submit" class="btn" @click="mobileFiltersOpen = false">Apply</button>
-          <button type="button" class="btn secondary" @click="() => { resetFilters(); mobileFiltersOpen = false }">Reset</button>
-        </div>
-      </form>
-    </aside>
+  <div class="profile-layout single">
 
     <!-- Main Content -->
     <main class="main-content">
@@ -79,8 +26,73 @@
         </div>
       </div>
 
+      <!-- Analytics moved below profile -->
+      <div class="card" style="margin: 16px 0;">
+        <h2>Analytics</h2>
+        <div class="ana-controls">
+          <label>Test Set</label>
+          <select v-model="chartSet">
+            <option value="">Select a set…</option>
+            <option v-for="s in allSets" :key="s" :value="s">{{ s }}</option>
+          </select>
+        </div>
+        <div v-if="chartPoints.length === 0" class="ana-empty">Select a set to see your score development.</div>
+        <div v-else class="ana-chart-wrap">
+          <canvas ref="profileChartRef" class="ana-chart-canvas" height="220"></canvas>
+          <div class="ana-legend">
+            <div class="stat">
+              <div class="label">Set</div>
+              <div class="value">{{ chartSet }}</div>
+            </div>
+            <div class="stat">
+              <div class="label">Attempts</div>
+              <div class="value">{{ chartPoints.length }}</div>
+            </div>
+            <div class="stat">
+              <div class="label">Best</div>
+              <div class="value">{{ bestForSet }}/100</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="top3">
+          <h3>Top 3 Best Scores <span v-if="chartSet">(for {{ chartSet }})</span></h3>
+          <ul class="top3-list">
+            <li v-for="t in top3" :key="t.id">
+              <div class="t-main">
+                <span class="t-title">{{ t.set_title || '-' }}</span>
+                <span class="t-score badge">{{ Math.round(t.score_percentage||0) }}/100</span>
+              </div>
+              <div class="t-sub">{{ formatDate(t.completed_at || t.started_at) }}</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
       <div class="card" style="margin-top: 16px;">
-        <h2>Exam History</h2>
+        <div class="history-head">
+          <h2>Exam History</h2>
+          <form class="history-filters" @submit.prevent="applyFilters">
+            <input type="text" v-model="searchQuery" placeholder="Search by set name" />
+            <select v-model="selectedSet">
+              <option value="">All Sets</option>
+              <option v-for="s in allSets" :key="s" :value="s">{{ s }}</option>
+            </select>
+            <input type="date" v-model="startDate" />
+            <input type="date" v-model="endDate" />
+            <select v-model="sortBy">
+              <option value="date">Completed Date</option>
+              <option value="score">Score</option>
+              <option value="set">Set Name</option>
+            </select>
+            <select v-model="sortDir">
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+            <button class="btn small" type="submit">Apply</button>
+            <button class="btn small secondary" type="button" @click="resetFilters">Reset</button>
+          </form>
+        </div>
         <div v-if="filteredHistory.length === 0">No matching exams found.</div>
         <div v-else class="table-wrap">
           <table class="history-table">
@@ -94,7 +106,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="e in filteredHistory" :key="e.id">
+              <tr v-for="e in paginatedHistory" :key="e.id">
                 <td class="completed-col">{{ formatDate(e.completed_at || e.started_at) }}</td>
                 <td>{{ e.set_title || '-' }}</td>
                 <td>{{ Math.round(e.score_percentage || 0) }}/100</td>
@@ -106,21 +118,42 @@
             </tbody>
           </table>
         </div>
+        <div class="history-pager">
+          <div class="pager-left">
+            <label>Rows</label>
+            <select v-model.number="pageSize">
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
+          <div class="pager-right">
+            <button class="btn small secondary" :disabled="page<=1" @click="page=page-1">Prev</button>
+            <span>Page {{ page }} / {{ pageCount }}</span>
+            <button class="btn small" :disabled="page>=pageCount" @click="page=page+1">Next</button>
+          </div>
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch, nextTick } from 'vue';
 import api from '../api/client';
 import { useAuthStore } from '../store/auth';
+import Chart from 'chart.js/auto'
 
 const auth = useAuthStore();
 const originalHistory = ref([]);
 const filteredHistory = ref([]);
 const allSets = ref([]);
 const mobileFiltersOpen = ref(false);
+// ---------- Analytics state ----------
+const chartSet = ref('')
+// intrinsic SVG size (fits container via preserveAspectRatio="none")
+const chartW = 700, chartH = 300
+const padL = 42, padR = 10, padT = 10, padB = 24
 
 // Filter state
 const searchQuery = ref('');
@@ -138,6 +171,56 @@ const expiryText = computed(() => {
   const dateStr = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
   const now = new Date()
   return d < now ? `${dateStr} (expired)` : dateStr
+})
+
+// ---------- Analytics computed/helpers (for Chart.js) ----------
+const chartPoints = computed(() => {
+  const set = chartSet.value
+  if (!set) return []
+  return originalHistory.value
+    .filter(e => (e.set_title || '') === set)
+    .map(e => ({ t: new Date(e.completed_at || e.started_at).getTime(), s: Number(e.score_percentage || 0), id:e.id }))
+    .filter(e => !isNaN(e.t))
+    .sort((a,b)=> a.t - b.t)
+})
+const bestForSet = computed(() => chartPoints.value.reduce((m,p)=> Math.max(m, p.s), 0))
+const top3 = computed(() => {
+  const source = chartSet.value
+    ? originalHistory.value.filter(e => (e.set_title||'') === chartSet.value)
+    : originalHistory.value
+  return [...source]
+    .sort((a,b)=> (Number(b.score_percentage||0) - Number(a.score_percentage||0)))
+    .slice(0,3)
+})
+
+// ------ Chart.js rendering (match AdminAnalytics style) ------
+const profileChartRef = ref(null)
+let profileChart = null
+function renderProfileChart(){
+  const pts = chartPoints.value
+  if (!profileChartRef.value) return
+  const labels = pts.map(p=> new Date(p.t).toLocaleDateString())
+  const data = pts.map(p=> Math.round(p.s||0))
+  if (profileChart) profileChart.destroy()
+  profileChart = new Chart(profileChartRef.value, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Score %', data, tension: .25, borderColor: '#2563eb', backgroundColor: 'rgba(99,102,241,0.2)', pointRadius: 2, fill: true }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, layout:{ padding: { top: 6, right: 8, bottom: 6, left: 8 } }, interaction:{ mode:'index', intersect:false }, plugins:{ tooltip:{ enabled:true }, legend:{ position:'top', labels:{ usePointStyle:false } } }, scales: { y: { min:0, max:100, grid:{ color:'#eef2f7' } }, x:{ grid:{ display:false } } } }
+  })
+}
+
+watch([chartPoints, chartSet], async ()=>{ await nextTick(); renderProfileChart() })
+
+// Pagination
+const page = ref(1)
+const pageSize = ref(10)
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredHistory.value.length / pageSize.value)))
+const paginatedHistory = computed(() => {
+  const p = Math.min(page.value, pageCount.value)
+  const start = (p - 1) * pageSize.value
+  return filteredHistory.value.slice(start, start + pageSize.value)
 })
 
 const applyFilters = () => {
@@ -184,6 +267,7 @@ const applyFilters = () => {
   });
 
   filteredHistory.value = tempHistory;
+  page.value = 1;
 };
 
 const resetFilters = () => {
@@ -216,7 +300,16 @@ onMounted(async () => {
   originalHistory.value = enriched;
   filteredHistory.value = enriched; // Initially, show all
   allSets.value = Array.from(sets);
+  page.value = 1;
+  // Default analytics select first set if available
+  if (!chartSet.value && allSets.value.length > 0){
+    chartSet.value = allSets.value[0]
+  }
+  await nextTick();
+  renderProfileChart()
 });
+
+// (moved above to be available before watcher)
 
 function formatDate(dt) {
   try {
@@ -252,29 +345,21 @@ function formatDate(dt) {
 </script>
 
 <style scoped>
-.profile-layout {
-  display: grid;
-  /* More compact sidebar width */
-  grid-template-columns: clamp(180px, 24vw, 220px) 1fr;
-  gap: 16px;
-  overflow-x: hidden; /* prevent accidental horizontal scroll */
-}
-
-.profile-layout > * { min-width: 0; }
-.main-content{ min-width: 0; }
-.filter-sidebar{ min-width: 0; }
+.profile-layout { display:grid; grid-template-columns: 1fr; gap:16px; overflow-x:hidden; }
+.profile-layout > * { min-width:0; }
+.main-content{ min-width:0; }
 
 .mobile-filter-bar { display:none; margin-bottom: 8px; }
 .btn.small{ padding:6px 10px; font-size:12px; }
 .btn.full{ width:100%; }
 
-.filter-sidebar { overflow-x: hidden; padding: 8px; max-width: 100%; box-sizing: border-box; }
-.filter-sidebar * { min-width: 0; }
-.filter-sidebar h3 {
-  margin-top: 0;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 10px;
-}
+.history-filters { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:8px 0 12px; }
+.history-filters input[type="text"], .history-filters select, .history-filters input[type="date"]{ padding:6px 8px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; }
+
+.history-pager{ width:100%; display:block; text-align:center; padding:20px 0; margin-top:12px; }
+.history-pager .pager-left{ display:inline-flex; align-items:center; gap:8px; margin:0 10px; }
+.history-pager select{ padding:4px 8px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; }
+.history-pager .pager-right{ display:inline-flex; align-items:center; gap:14px; margin:0 10px; }
 
 .form-group { margin-bottom: 14px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -312,6 +397,25 @@ function formatDate(dt) {
 .badge{ padding:3px 10px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.2px; }
 .badge.ok{ background:linear-gradient(135deg,#34d399,#10b981); color:#064e3b; border:0; box-shadow:0 0 0 1px rgba(16,185,129,.15) inset, 0 6px 16px rgba(16,185,129,.22); }
 .badge.off{ background:linear-gradient(135deg,#e2e8f0,#cbd5e1); color:#0f172a; border:0; box-shadow:0 0 0 1px rgba(148,163,184,.25) inset, 0 2px 8px rgba(15,23,42,.06); }
+
+/* Analytics styles */
+.ana-controls{ display:flex; align-items:center; gap:10px; margin-top:8px; }
+.ana-controls select{ padding:6px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; }
+.ana-empty{ color:#64748b; font-style:italic; margin:10px 0; }
+.ana-chart-wrap{ margin-top:10px; width:100%; max-width:none; }
+.ana-chart-canvas{ width:100% !important; height:220px !important; display:block; }
+.ana-legend{ display:flex; gap:16px; margin-top:8px; flex-wrap:wrap; }
+.ana-legend .stat{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; min-width:120px; }
+.ana-legend .label{ color:#64748b; font-size:12px; }
+.ana-legend .value{ font-weight:800; color:#0f172a; font-size:14px; }
+.top3{ margin-top:12px; }
+.top3 h3{ margin:8px 0; font-size:16px; }
+.top3-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+.top3-list li{ border:1px solid #e2e8f0; border-radius:10px; padding:8px 10px; background:#fff; }
+.top3-list .t-main{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.top3-list .t-title{ font-weight:700; color:#0f172a; }
+.top3-list .t-score{ background:#e0f2fe; color:#075985; border-radius:999px; padding:2px 8px; font-size:12px; font-weight:800; }
+.top3-list .t-sub{ color:#64748b; font-size:12px; margin-top:4px; }
 
 /* Responsive */
 @media (max-width: 900px) {

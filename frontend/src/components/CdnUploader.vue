@@ -2,7 +2,7 @@
   <div class="uploader">
     <input ref="fileInput" type="file" accept="image/*" @change="onChoose" hidden />
     <div class="row">
-      <input class="url" type="text" :value="modelValue" @input="$emit('update:modelValue', $event.target.value)" placeholder="Paste image URL or upload..." />
+      <input class="url" type="text" :value="modelValue" @input="onInput" placeholder="Paste image URL or upload..." />
       <button type="button" class="btn" @click="pick">Upload to CDN</button>
     </div>
     <div v-if="previewUrl" class="preview">
@@ -11,7 +11,7 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { presignUpload } from '../api/files'
 
 const props = defineProps({
@@ -23,6 +23,21 @@ const fileInput = ref(null)
 const previewUrl = ref('')
 
 function pick(){ fileInput.value?.click() }
+
+function resolve(src){
+  if (!src) return ''
+  const s = String(src)
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:image')) return s
+  const path = s.startsWith('/') ? s : `/${s}`
+  if (path.startsWith('/uploads/')) return `${window.location.origin.replace('5173','8000')}${path}`
+  return s
+}
+
+function onInput(e){
+  const v = e.target.value
+  emit('update:modelValue', v)
+  previewUrl.value = resolve(v)
+}
 
 async function onChoose(e){
   const file = e.target.files?.[0]
@@ -50,6 +65,11 @@ async function onChoose(e){
     e.target.value = ''
   }
 }
+
+// Keep preview in sync for imported values or programmatic changes
+watch(() => props.modelValue, (v) => {
+  previewUrl.value = resolve(v)
+}, { immediate: true })
 </script>
 <style scoped>
 .uploader .row{ display:flex; gap:8px; }
