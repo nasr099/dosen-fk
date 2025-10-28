@@ -136,37 +136,7 @@ def extract_embedded_images_by_cell(xlsx_bytes: bytes, sheet_index_1_based: int)
             out.append({ 'row': fr, 'col': fc, 'from_row': fr, 'from_col': fc, 'to_row': tr, 'to_col': tc, 'data': data, 'content_type': ctype })
     return out
 
-@router.get("/import-template.xlsx")
-def download_import_template_top():
-    try:
-        from openpyxl import Workbook
-    except Exception:
-        raise HTTPException(status_code=500, detail="openpyxl is not installed on the server")
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "questions"
-    headers = [
-        'type','question_text','question_img',
-        'option_a_text','option_a_img',
-        'option_b_text','option_b_img',
-        'option_c_text','option_c_img',
-        'option_d_text','option_d_img',
-        'option_e_text','option_e_img',
-        'correct_answer','explanation'
-    ]
-    ws.append(headers)
-    ws.append(['mcq','What is 2+2?','', '3','', '4','', '5','', '6','', '','', 'B','Basic arithmetic'])
-    ws.append(['multi','Select primes','', '2','', '3','', '4','', '5','', '6','', 'A,B,D',''])
-    ws.append(['essay','Explain the cardiac cycle.','', '','','','','','','','','','', ''])
-
-    from io import BytesIO
-    buf = BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return StreamingResponse(buf, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers={
-        'Content-Disposition': 'attachment; filename="question_import_template.xlsx"'
-    })
+ 
 
 @router.get("/", response_model=List[QuestionSetSchema])
 def list_sets(
