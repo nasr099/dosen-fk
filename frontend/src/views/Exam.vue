@@ -145,10 +145,12 @@
   </div>
 </template>
 <script setup>
-import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch, nextTick } from 'vue'
 import api from '../api/client'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { renderMathHTML } from '../utils/math'
+import renderMathInElement from 'katex/contrib/auto-render/auto-render'
 
 const route = useRoute()
 const router = useRouter()
@@ -161,6 +163,10 @@ const examSessionId = ref(null)
 const totalQuestions = ref(0)
 const questions = ref([])
 const answers = ref({})
+
+onUnmounted(() => {
+  removeGuards()
+})
 const minutes = ref(0)
 const seconds = ref(0)
 const timeLimitInitial = ref(60)
@@ -309,15 +315,33 @@ function renderHTML(html){
       clean(ch)
     })
   })(div)
-  return div.innerHTML
+  // After sanitizing, render math using KaTeX for $...$ and $$...$$ within text nodes
+  return renderMathHTML(div.innerHTML)
+}
+
+function renderMathDOM(){
+  try{
+    const root = document.querySelector('.left') || document.body
+    renderMathInElement(root, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+      ],
+      throwOnError: false,
+      ignoredClasses: ['katex'],
+      ignoredTags: ['script','style','textarea']
+    })
+  } catch (e){
+    try { console.warn('katex auto-render error', e) } catch {}
+  }
 }
 
 function openLightbox(url){ lightboxUrl.value = url }
 function closeLightbox(){ lightboxUrl.value = '' }
 
-function prev(){ if (currentIndex.value > 0){ currentIndex.value--; ensureFullscreen() } }
-function next(){ if (currentIndex.value < questions.value.length-1){ currentIndex.value++; ensureFullscreen() } }
-function go(i){ currentIndex.value = i; ensureFullscreen() }
+function prev(){ if (currentIndex.value > 0){ currentIndex.value--; ensureFullscreen(); nextTick(renderMathDOM) } }
+function next(){ if (currentIndex.value < questions.value.length-1){ currentIndex.value++; ensureFullscreen(); nextTick(renderMathDOM) } }
+function go(i){ currentIndex.value = i; ensureFullscreen(); nextTick(renderMathDOM) }
 function toggleFlag(qid){
   flagged.value[qid] = !flagged.value[qid]
 }
@@ -364,6 +388,8 @@ onMounted(async () => {
     const params = setId ? { question_set_id: setId } : { category_id: categoryId }
     const { data: qs } = await api.get('/questions/', { params })
     questions.value = qs
+    await nextTick()
+    renderMathDOM()
 
     // if viewing by set, fetch set title
     if (setId){
@@ -441,6 +467,11 @@ function setupGuards(){
     if (document.hidden){ maybeViolate('hidden-poll') }
     wasFullscreen = isFull
   }, 1000)
+}
+function removeGuards(){
+  try { unsubs.forEach(fn => { try{ fn() }catch{} }) } catch {}
+  unsubs = []
+  try { if (guardTick) { clearInterval(guardTick); guardTick = null } } catch {}
 }
 function openConfirm(){ showConfirm.value = true }
 function closeConfirm(){ showConfirm.value = false }
@@ -580,6 +611,13 @@ onMounted(async () => {
 .opt-img { max-width: 220px; max-height: 160px; width: auto; height: auto; border-radius:8px; cursor: zoom-in; object-fit: contain; }
 .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; z-index: 1000; }
 .lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+/* Center math formulas */
+.qtext .katex-display,
+.opt-content .katex-display{ margin-left:auto; margin-right:auto; text-align:center; }
+.qtext .math-inline:only-child,
+.opt-content .math-inline:only-child{ display:block; text-align:center; margin: 0 auto; }
+.qtext .math-block,
+.opt-content .math-block{ text-align:center; margin-left:auto; margin-right:auto; }
 /* Confirm submit modal */
 .modal-overlay{ position:fixed; inset:0; background: rgba(2,6,23,0.55); display:flex; align-items:center; justify-content:center; z-index: 1000; padding: 16px; }
 .modal{ width:100%; max-width:480px; background:#fff; border:1px solid #e2e8f0; border-radius:14px; box-shadow: 0 20px 40px rgba(2,6,23,0.18); overflow:hidden; }

@@ -29,6 +29,36 @@
       <span class="sep"></span>
       <button type="button" @click="inlineCode" title="Inline code">{ }</button>
       <button type="button" @click="blockCode" title="Code block">&lt;/&gt;</button>
+      <button type="button" @click="insertInlineMath" title="Inline math">∑x</button>
+      <button type="button" @click="insertBlockMath" title="Block math">∑</button>
+      <div class="math-helper">
+        <button type="button" @click="toggleMathMenu" title="Math helper">𝑓(x) ▾</button>
+        <div v-if="showMath" class="math-menu" @mousedown.prevent>
+          <div class="group">
+            <div class="head">Inline</div>
+            <div class="grid">
+              <button type="button" @click="ins('$a^2+b^2=c^2$')">a^2+b^2=c^2</button>
+              <button type="button" @click="ins('$\\frac{a}{b}$')">fraction</button>
+              <button type="button" @click="ins('$\\sqrt{x}$')">sqrt</button>
+              <button type="button" @click="ins('$\\alpha,\\beta,\\theta$')">α β θ</button>
+              <button type="button" @click="ins('$\\pi$')">π</button>
+              <button type="button" @click="ins('$\\leq, \\geq, \\approx$')">≤ ≥ ≈</button>
+              <button type="button" @click="ins('$x_1, x_2$')">subscript</button>
+              <button type="button" @click="ins('$a\\cdot b$')">· (cdot)</button>
+            </div>
+          </div>
+          <div class="group">
+            <div class="head">Block</div>
+            <div class="grid">
+              <button type="button" @click="insBlock('\\int_0^1 x^2 \\, dx')">integral</button>
+              <button type="button" @click="insBlock('\\sum_{i=1}^n i')">summation</button>
+              <button type="button" @click="insBlock('\\frac{a+b}{c+d}')">fraction</button>
+              <button type="button" @click="insBlock('\\begin{bmatrix}1 & 2\\\\3 & 4\\end{bmatrix}')">matrix</button>
+            </div>
+          </div>
+          <div class="tips">Tips: Use $...$ for inline, $$...$$ for block. Use \\ for commands, ^ for superscript, _ for subscript.</div>
+        </div>
+      </div>
       <button type="button" @click="insertHr" title="Horizontal rule">―</button>
       <span class="sep"></span>
       <button type="button" @click="makeLink" title="Link">🔗</button>
@@ -52,6 +82,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 const ed = ref(null)
+const showMath = ref(false)
 
 const ALLOWED_TAGS = new Set(['P','B','I','U','S','STRONG','EM','UL','OL','LI','H1','H2','H3','H4','BLOCKQUOTE','A','IMG','CODE','PRE','SUB','SUP','HR','BR','DIV','SPAN'])
 const ALLOWED_ATTR = new Set(['href','src','alt','target','rel','style'])
@@ -96,6 +127,20 @@ function blockCode(){ document.execCommand('insertHTML', false, `<pre><code>${ge
 function insertHr(){ document.execCommand('insertHorizontalRule', false, null); onInput() }
 function sup(){ document.execCommand('superscript'); onInput() }
 function sub(){ document.execCommand('subscript'); onInput() }
+function insertInlineMath(){
+  const sel = getSelectionHtml() || 'a^2+b^2=c^2'
+  document.execCommand('insertHTML', false, `$${sel}$`)
+  onInput()
+}
+function insertBlockMath(){
+  const sel = getSelectionHtml() || '\\int_0^1 x^2 \\, dx'
+  const html = `<pre>$$\n${sel}\n$$</pre>`
+  document.execCommand('insertHTML', false, html)
+  onInput()
+}
+function toggleMathMenu(){ showMath.value = !showMath.value }
+function ins(snippet){ document.execCommand('insertHTML', false, snippet); onInput(); showMath.value=false }
+function insBlock(snippet){ const html = `<pre>$$\n${snippet}\n$$</pre>`; document.execCommand('insertHTML', false, html); onInput(); showMath.value=false }
 function insertImageUrl(){
   const url = prompt('Enter image URL:')
   if (url){ document.execCommand('insertImage', false, url); onInput() }
