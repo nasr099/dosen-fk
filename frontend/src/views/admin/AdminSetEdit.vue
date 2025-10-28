@@ -173,9 +173,10 @@ function categoryName(id){
 
 async function downloadTemplate(){
   try {
-    const res = await fetch(templateUrl, { credentials: 'include' })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const blob = await res.blob()
+    // Prefer authorized axios call so backend receives Bearer token
+    const { default: api } = await import('../../api/client')
+    const { data } = await api.get('/sets/import-template.xlsx', { responseType: 'blob' })
+    const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -185,8 +186,22 @@ async function downloadTemplate(){
     a.remove()
     URL.revokeObjectURL(url)
   } catch (e) {
-    // Fallback: open in new tab
-    window.open(templateUrl, '_blank', 'noopener')
+    // Fallbacks: try unauthenticated fetch, then open in new tab
+    try {
+      const res = await fetch(templateUrl)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'import-template.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      window.open(templateUrl, '_blank', 'noopener')
+    }
   }
 }
 
