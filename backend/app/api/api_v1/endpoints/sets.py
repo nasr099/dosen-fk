@@ -595,40 +595,7 @@ def preview_import_questions_from_xlsx(
 
     return { 'rows': preview_rows, 'errors': errors, 'diagnostics': diagnostics }
 
-@router.get("/import-template.xlsx")
-def download_import_template():
-    try:
-        from openpyxl import Workbook
-    except Exception:
-        raise HTTPException(status_code=500, detail="openpyxl is not installed on the server")
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "questions"
-    headers = [
-        'type','question_text','question_img',
-        'option_a_text','option_a_img',
-        'option_b_text','option_b_img',
-        'option_c_text','option_c_img',
-        'option_d_text','option_d_img',
-        'option_e_text','option_e_img',
-        'correct_answer','explanation'
-    ]
-    ws.append(headers)
-    # Example MCQ
-    ws.append(['mcq','What is 2+2?','', '3','', '4','', '5','', '6','', '','', 'B','Basic arithmetic'])
-    # Example MULTI
-    ws.append(['multi','Select primes','', '2','', '3','', '4','', '5','', '6','', 'A,B,D',''])
-    # Example ESSAY
-    ws.append(['essay','Explain the cardiac cycle.','', '','','','','','','','','','', ''])
-
-    from io import BytesIO
-    buf = BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return StreamingResponse(buf, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers={
-        'Content-Disposition': 'attachment; filename="question_import_template.xlsx"'
-    })
+ 
 
 @router.post("/with-questions", response_model=QuestionSetSchema)
 def create_set_with_questions(
