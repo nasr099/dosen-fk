@@ -93,7 +93,7 @@
           <input ref="fileInput" type="file" accept=".xlsx" @change="onFileChange" />
           <button class="btn" :disabled="!xlsxFile || importing" @click="doImport">{{ importing ? 'Importing…' : 'Import' }}</button>
           <button class="btn secondary" :disabled="!xlsxFile || importing" @click="doPreview">Preview</button>
-          <a class="btn secondary" :href="templateUrl" target="_blank" rel="noopener">Download template</a>
+          <button class="btn secondary" @click="downloadTemplate">Download template</button>
         </div>
         <div v-if="importResult" class="import-result">
           <div><strong>Created:</strong> {{ importResult.created }}</div>
@@ -169,6 +169,25 @@ const previewRows = ref([])
 function categoryName(id){
   const c = categories.value.find(x => x.id === id)
   return c ? c.name : id
+}
+
+async function downloadTemplate(){
+  try {
+    const res = await fetch(templateUrl, { credentials: 'include' })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'import-template.xlsx'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    // Fallback: open in new tab
+    window.open(templateUrl, '_blank', 'noopener')
+  }
 }
 
 async function doPreview(){
