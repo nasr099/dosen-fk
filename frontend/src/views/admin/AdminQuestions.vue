@@ -82,7 +82,7 @@
           <input ref="fileInput" type="file" accept=".xlsx" @change="onFileChangeNew" />
           <button type="button" class="btn" :disabled="!xlsxFileNew || importingNew" @click="doImportNew">{{ importingNew ? 'Importing…' : 'Import' }}</button>
           <button type="button" class="btn secondary" :disabled="!xlsxFileNew || importingNew" @click="doPreviewNew">Preview</button>
-          <a class="btn secondary" :href="templateUrl" target="_blank" rel="noopener">Download template</a>
+          <button type="button" class="btn secondary" @click="downloadTemplateNew">Download template</button>
         </div>
         <div v-if="importErrorNew" class="issues" style="margin-top:8px;">
           {{ importErrorNew }}
@@ -217,6 +217,23 @@ async function load(){
 }
 
 onMounted(load)
+async function downloadTemplateNew(){
+  try {
+    const res = await fetch(templateUrl, { credentials: 'include' })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'import-template.xlsx'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    window.open(templateUrl, '_blank', 'noopener')
+  }
+}
 
 async function refreshSetsOverview(){
   // flatten all sets and count questions per set
