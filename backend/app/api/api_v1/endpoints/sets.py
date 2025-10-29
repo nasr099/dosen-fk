@@ -181,6 +181,53 @@ def list_sets(
         q = q.filter(QuestionSetModel.category_id == category_id)
     return q.order_by(QuestionSetModel.created_at.desc()).all()
 
+@router.get("/summary")
+def list_sets_summary(
+    db: Session = Depends(get_db),
+    category_id: Optional[int] = Query(None)
+):
+    """
+    Return sets with aggregated question counts without fetching all questions.
+    Response: [{ id, category_id, title, description, time_limit_minutes, access_level, created_at, updated_at, count }]
+    """
+    from sqlalchemy import func
+    from sqlalchemy.orm import aliased
+    qs = QuestionSetModel
+    q = QuestionModel
+    base = db.query(
+        qs.id,
+        qs.category_id,
+        qs.title,
+        qs.description,
+        qs.time_limit_minutes,
+        qs.is_active,
+        qs.access_level,
+        qs.created_at,
+        qs.updated_at,
+        func.count(q.id).label('count'),
+    ).outerjoin(q, q.question_set_id == qs.id)
+    base = base.filter(qs.is_active == True)
+    if category_id is not None:
+        base = base.filter(qs.category_id == category_id)
+    rows = base.group_by(
+        qs.id, qs.category_id, qs.title, qs.description, qs.time_limit_minutes, qs.is_active, qs.access_level, qs.created_at, qs.updated_at
+    ).order_by(qs.created_at.desc()).all()
+    return [
+        {
+            'id': r.id,
+            'category_id': r.category_id,
+            'title': r.title,
+            'description': r.description,
+            'time_limit_minutes': r.time_limit_minutes,
+            'is_active': r.is_active,
+            'access_level': r.access_level,
+            'created_at': r.created_at,
+            'updated_at': r.updated_at,
+            'count': int(r.count or 0),
+        }
+        for r in rows
+    ]
+
 @router.get("/{set_id}", response_model=QuestionSetSchema)
 def get_set(set_id: int, db: Session = Depends(get_db)):
     s = db.query(QuestionSetModel).filter(QuestionSetModel.id == set_id).first()

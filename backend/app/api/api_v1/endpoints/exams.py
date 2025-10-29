@@ -199,9 +199,41 @@ def submit_exam(
         essay_avg_score=essay_avg_score if essay_avg_score is not None else 0.0,
     )
 
-@router.get("/history", response_model=List[ExamSessionSchema])
-def get_history(db: Session = Depends(get_db), current_user=Depends(get_current_active_user)):
-    return db.query(ExamSessionModel).filter(ExamSessionModel.user_id == current_user.id).order_by(ExamSessionModel.started_at.desc()).all()
+@router.get("/history")
+def get_history(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+    limit: int = 100,
+    offset: int = 0,
+):
+    from sqlalchemy import func
+    limit = max(1, min(limit, 500))
+    offset = max(0, offset)
+    q = db.query(
+        ExamSessionModel,
+        QuestionSetModel.title.label('set_title')
+    ).outerjoin(QuestionSetModel, QuestionSetModel.id == ExamSessionModel.question_set_id)
+    q = q.filter(ExamSessionModel.user_id == current_user.id)
+    q = q.order_by(ExamSessionModel.started_at.desc()).offset(offset).limit(limit)
+    rows = q.all()
+    out = []
+    for es, set_title in rows:
+        obj = {
+            'id': es.id,
+            'user_id': es.user_id,
+            'category_id': es.category_id,
+            'question_set_id': es.question_set_id,
+            'total_questions': es.total_questions,
+            'correct_answers': es.correct_answers,
+            'score_percentage': es.score_percentage,
+            'time_taken_minutes': es.time_taken_minutes,
+            'is_completed': es.is_completed,
+            'started_at': es.started_at,
+            'completed_at': es.completed_at,
+            'set_title': set_title,
+        }
+        out.append(obj)
+    return out
 
 @router.get("/result/{session_id}", response_model=ExamResult)
 def get_result(session_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_active_user)):
