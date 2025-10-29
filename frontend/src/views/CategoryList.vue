@@ -189,22 +189,14 @@ onMounted(async () => {
   // If a sub-category id is provided by route, only load that category's sets
   if (subId && Number.isFinite(subId)){
     selectedCategoryId.value = subId
-    const { data: s } = await api.get('/sets/', { params: { category_id: subId } })
-    const all = []
-    for (const one of s){
-      const { data: qs } = await api.get('/questions/', { params: { question_set_id: one.id } })
-      all.push({ ...one, count: qs.length })
-    }
-    sets.value = all
+    const { data } = await api.get('/sets/summary', { params: { category_id: subId } })
+    sets.value = Array.isArray(data) ? data : []
   } else {
-    // load all sets and their question counts grouped by categories
+    // fetch summaries for all categories sequentially (could be parallel but this is small)
     const all = []
     for (const c of categories.value){
-      const { data: s } = await api.get('/sets/', { params: { category_id: c.id } })
-      for (const one of s){
-        const { data: qs } = await api.get('/questions/', { params: { question_set_id: one.id } })
-        all.push({ ...one, count: qs.length })
-      }
+      const { data } = await api.get('/sets/summary', { params: { category_id: c.id } })
+      all.push(...(Array.isArray(data) ? data : []))
     }
     sets.value = all
   }

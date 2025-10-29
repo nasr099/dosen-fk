@@ -282,26 +282,13 @@ const resetFilters = () => {
 
 onMounted(async () => {
   const { data } = await api.get('/exams/history');
-  const enriched = [];
-  const sets = new Set();
-
-  for (const e of data) {
-    let set_title = null;
-    if (e.question_set_id) {
-      try {
-        const { data: s } = await api.get(`/sets/${e.question_set_id}`);
-        set_title = s.title;
-        if (set_title) sets.add(set_title);
-      } catch {}
-    }
-    enriched.push({ ...e, set_title });
-  }
+  const enriched = Array.isArray(data) ? data : [];
+  const sets = new Set(enriched.map(e => e.set_title).filter(Boolean));
 
   originalHistory.value = enriched;
-  filteredHistory.value = enriched; // Initially, show all
+  filteredHistory.value = enriched;
   allSets.value = Array.from(sets);
   page.value = 1;
-  // Default analytics select first set if available
   if (!chartSet.value && allSets.value.length > 0){
     chartSet.value = allSets.value[0]
   }

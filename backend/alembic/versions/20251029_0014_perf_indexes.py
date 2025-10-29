@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20251029_0014_perf_indexes'
-down_revision = '20251026_0013_add_is_teacher_to_users'
+down_revision = '20251026_0013'
 branch_labels = None
 depends_on = None
 
