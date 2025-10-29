@@ -1,28 +1,35 @@
 <template>
   <div class="card result-card" v-if="result">
     <h2 class="result-title">Result</h2>
-    <div class="score-grid">
-      <div class="score-box">
-        <div class="score-title">Objective (MCQ + Multi)</div>
-        <div class="result-meta"><strong>Score:</strong> {{ score100 }}/100</div>
-        <div class="result-meta"><strong>Correct:</strong> {{ result.correct_answers }}/{{ result.total_questions }}</div>
-        <div class="pill-progress" role="progressbar" :aria-valuemin="0" :aria-valuemax="100" :aria-valuenow="score100">
-          <div class="pill-track">
-            <div class="pill-fill" :style="{ width: score100 + '%' }">
-              <span class="pill-label">{{ score100 }}%</span>
-            </div>
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-title">Objective (MCQ + Multi)</div>
+        <div class="donut-wrap">
+          <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="Objective score">
+            <circle class="ring" cx="21" cy="21" r="16" />
+            <circle class="slice" :stroke-dasharray="score100 + ' ' + (100-score100)" cx="21" cy="21" r="16" />
+            <text x="21" y="22" text-anchor="middle" class="donut-text">{{ score100 }}%</text>
+          </svg>
+          <div class="breakdown">
+            <div class="brow"><span class="dot ok"></span> Correct <strong>{{ result.correct_answers }}</strong></div>
+            <div class="brow"><span class="dot bad"></span> Incorrect <strong>{{ objectiveIncorrect }}</strong></div>
+            <div class="brow"><span class="dot idle"></span> Unanswered <strong>{{ objectiveUnanswered }}</strong></div>
+            <div class="brow total">Total <strong>{{ result.total_questions }}</strong></div>
           </div>
         </div>
       </div>
-      <div class="score-box">
-        <div class="score-title">Essays (average)</div>
-        <div class="result-meta"><strong>Avg:</strong> {{ essayAvg }}/100</div>
-        <div class="result-meta"><strong>Graded:</strong> {{ result.essay_graded_count || 0 }}/{{ result.essay_count || 0 }}</div>
-        <div class="pill-progress" role="progressbar" :aria-valuemin="0" :aria-valuemax="100" :aria-valuenow="essayAvg">
-          <div class="pill-track">
-            <div class="pill-fill" :style="{ width: essayAvg + '%' }">
-              <span class="pill-label">{{ essayAvg }}%</span>
-            </div>
+      <div class="panel">
+        <div class="panel-title">Essays</div>
+        <div class="donut-wrap">
+          <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="Essay average">
+            <circle class="ring" cx="21" cy="21" r="16" />
+            <circle class="slice" :stroke-dasharray="essayAvg + ' ' + (100-essayAvg)" cx="21" cy="21" r="16" />
+            <text x="21" y="22" text-anchor="middle" class="donut-text">{{ essayAvg }}%</text>
+          </svg>
+          <div class="breakdown">
+            <div class="brow"><span class="dot ok"></span> Graded <strong>{{ result.essay_graded_count || 0 }}</strong></div>
+            <div class="brow"><span class="dot idle"></span> Pending <strong>{{ (result.essay_count||0) - (result.essay_graded_count||0) }}</strong></div>
+            <div class="brow total">Total <strong>{{ result.essay_count || 0 }}</strong></div>
           </div>
         </div>
       </div>
@@ -115,6 +122,17 @@ const route = useRoute()
 const result = ref(null)
 const score100 = computed(() => Math.round(result.value?.score_percentage ?? 0))
 const essayAvg = computed(() => Math.round(result.value?.essay_avg_score ?? 0))
+
+// Objective counters (based on backend payload)
+const objectiveAnswered = computed(() => {
+  const arr = result.value?.answers || []
+  return arr.filter(a => (a.question_type==='mcq' || a.question_type==='multi') && (a.selected_answer||'').trim()).length
+})
+const objectiveIncorrect = computed(() => {
+  const arr = result.value?.answers || []
+  return arr.filter(a => (a.question_type==='mcq' || a.question_type==='multi') && (a.selected_answer||'').trim() && !a.is_correct).length
+})
+const objectiveUnanswered = computed(() => Math.max(0, (result.value?.total_questions||0) - objectiveAnswered.value))
 
 // Heuristics to read answer detail fields coming from backend
 const pickFirst = (obj, keys) => {
@@ -215,11 +233,22 @@ onMounted(async () => {
 .result-card{ padding: 22px; }
 .result-title{ margin: 0 0 8px 0; }
 .result-meta{ margin: 6px 0; }
-/* Green pill progress bar */
-.pill-progress{ margin:12px 0 16px; }
-.pill-track{ background:#e6f6ee; border:2px solid #16a34a; border-radius:9999px; height:28px; overflow:hidden; position:relative; }
-.pill-fill{ background:#16a34a; height:100%; display:flex; align-items:center; padding-left:10px; transition:width .3s ease; color:#fff; }
-.pill-label{ font-weight:700; font-size:14px; line-height:1; }
+/* Grid layout for two donuts */
+.grid-2{ display:grid; grid-template-columns: repeat(2,1fr); gap:18px; margin:14px 0 4px; }
+.panel{ border:1px solid #e5e7eb; border-radius:12px; padding:14px; background:#fff; }
+.panel-title{ font-weight:700; margin-bottom:10px; }
+.donut-wrap{ display:flex; align-items:center; gap:18px; }
+.donut{ width:130px; height:130px; }
+.ring{ fill:none; stroke:#e5e7eb; stroke-width:6; }
+.slice{ fill:none; stroke:#16a34a; stroke-width:6; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.donut-text{ font-size:12px; dominant-baseline:middle; font-weight:800; fill:#111827; }
+.breakdown{ display:flex; flex-direction:column; gap:6px; font-size:14px; }
+.brow{ display:flex; align-items:center; gap:8px; }
+.brow.total{ margin-top:6px; font-weight:700; }
+.dot{ width:10px; height:10px; border-radius:999px; display:inline-block; border:1px solid #cbd5e1; }
+.dot.ok{ background:#16a34a; border-color:#16a34a; }
+.dot.bad{ background:#ef4444; border-color:#ef4444; }
+.dot.idle{ background:#e5e7eb; }
 
 .answers-title{ margin: 18px 0 10px; }
 .answer-card{ margin-top:22px; padding:20px; }
@@ -260,7 +289,7 @@ onMounted(async () => {
 .qimg{ max-width:100%; width:auto; max-height:300px; height:auto; object-fit:contain; border-radius:8px; border:1px solid #e5e7eb; background:#fff; }
 @media (max-width: 600px){
   .row{ gap:12px; }
-  .score-grid{ grid-template-columns: 1fr; }
+  .grid-2{ grid-template-columns: 1fr; }
   .ans-detail img{ max-height:140px; }
   .qimg{ max-height:220px; }
 }

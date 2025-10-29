@@ -102,59 +102,50 @@ def submit_exam(
     objective_total = 0  # mcq + multi
     essay_ids = []
 
-    # Map question id to correct answer for efficiency
-    question_map = {
-        q.id: q for q in db.query(QuestionModel).filter(
-            QuestionModel.id.in_([a.question_id for a in submission.answers])
-        ).all()
-    }
+    # Build map of submitted answers for quick lookup
+    submitted_map = { a.question_id: a.selected_answer for a in submission.answers }
 
-    # Update answers (robust even if placeholder rows were removed during a set edit)
-    for a in submission.answers:
-        ans = db.query(ExamAnswerModel).filter(
-            ExamAnswerModel.exam_session_id == exam.id,
-            ExamAnswerModel.question_id == a.question_id,
-        ).first()
-        if not ans:
-            # Placeholder row might have been deleted by an admin set update.
-            # Recreate it so the user's submission is still recorded.
-            ans = ExamAnswerModel(
-                exam_session_id=exam.id,
-                question_id=a.question_id,
-            )
-            db.add(ans)
-        q = question_map.get(a.question_id)
+    # Load all placeholder answers for this session (ensures we score unanswered ones too)
+    answers_db = db.query(ExamAnswerModel).filter(ExamAnswerModel.exam_session_id == exam.id).order_by(ExamAnswerModel.id.asc()).all()
+    qids = [a.question_id for a in answers_db]
+    question_map = { q.id: q for q in db.query(QuestionModel).filter(QuestionModel.id.in_(qids)).all() }
+
+    for ans in answers_db:
+        q = question_map.get(ans.question_id)
+        if not q:
+            continue
         qtype = getattr(q, 'question_type', 'mcq') or 'mcq'
-        # For MCQ/MULTI, evaluate correctness; for essay, store text but don't count towards score
+        selected = submitted_map.get(ans.question_id, ans.selected_answer) or ''
+        is_correct = False
         if qtype == 'mcq':
             objective_total += 1
-            is_correct = (a.selected_answer or "").upper() == (q.correct_answer or "").upper()
+            is_correct = (selected or "").upper() == (q.correct_answer or "").upper()
         elif qtype == 'multi':
             objective_total += 1
-            # Normalize sets of letters
-            sel = set([(x or '').strip().upper() for x in (a.selected_answer or '').split(',') if x.strip()])
+            sel = set([(x or '').strip().upper() for x in (selected or '').split(',') if x.strip()])
             cor = set([(x or '').strip().upper() for x in (q.correct_answer or '').split(',') if x.strip()])
             is_correct = (len(cor) > 0) and (sel == cor)
         else:
-            is_correct = False
-        ans.selected_answer = (a.selected_answer or None)
-        ans.is_correct = is_correct
+            # essay does not affect objective score
+            pass
+        # persist
+        ans.selected_answer = selected or None
+        ans.is_correct = bool(is_correct)
         if is_correct:
             correct += 1
         payload = {
             "question_id": q.id,
             "question_text": q.question_text,
-            "selected_answer": a.selected_answer,
+            "selected_answer": selected,
             "correct_answer": q.correct_answer,
-            "is_correct": is_correct,
+            "is_correct": bool(is_correct),
             "explanation": q.explanation,
-            "selected_detail": _option_value(q, a.selected_answer) if qtype == 'mcq' else (a.selected_answer or ''),
+            "selected_detail": _option_value(q, selected) if qtype == 'mcq' else (selected or ''),
             "correct_detail": _option_value(q, q.correct_answer) if qtype == 'mcq' else '',
             "question_type": qtype,
         }
         if qtype == 'multi':
-            # Provide arrays of letter->detail for UI if needed
-            sel_letters = [x for x in (a.selected_answer or '').split(',') if x.strip()]
+            sel_letters = [x for x in (selected or '').split(',') if x.strip()]
             cor_letters = [x for x in (q.correct_answer or '').split(',') if x.strip()]
             payload["selected_multi"] = sel_letters
             payload["correct_multi"] = cor_letters
