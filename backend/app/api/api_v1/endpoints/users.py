@@ -7,12 +7,30 @@ from app.api.deps import get_current_active_user, get_current_admin_user
 from app.db.base import get_db
 from app.db.models import User as UserModel
 from app.schemas.user import User as UserSchema
+from app.core.security import get_password_hash, verify_password
+import secrets, string
 
 router = APIRouter()
 
 @router.get("/me", response_model=UserSchema)
 def read_users_me(current_user: UserModel = Depends(get_current_active_user)):
     return current_user
+
+# --------- Self-service password change ---------
+class ChangePasswordPayload(BaseModel):
+    current_password: str
+    new_password: str
+
+@router.post("/me/change-password")
+def change_password_me(payload: ChangePasswordPayload, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_active_user)):
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if not payload.new_password or len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    return { 'status': 'ok' }
 
 @router.get("/", response_model=List[UserSchema])
 def list_users(
@@ -42,6 +60,44 @@ def set_teacher(user_id: int, payload: TeacherPayload, db: Session = Depends(get
     db.commit()
     db.refresh(user)
     return user
+
+# ---------------- Password Reset (Admin) ----------------
+class ResetPasswordPayload(BaseModel):
+    new_password: Optional[str] = None
+    generate: Optional[bool] = False
+    length: Optional[int] = 12
+
+@router.post("/{user_id}/reset-password")
+def reset_password(user_id: int, payload: ResetPasswordPayload, db: Session = Depends(get_db), admin_user: UserModel = Depends(get_current_admin_user)):
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Decide password to set
+    temporary_password = None
+    if payload.generate:
+        L = max(8, min(int(payload.length or 12), 64))
+        alphabet = string.ascii_letters + string.digits
+        # ensure at least one of each class
+        pw = [secrets.choice(string.ascii_lowercase), secrets.choice(string.ascii_uppercase), secrets.choice(string.digits)]
+        pw += [secrets.choice(alphabet) for _ in range(L - len(pw))]
+        secrets.SystemRandom().shuffle(pw)
+        temporary_password = ''.join(pw)
+        raw_password = temporary_password
+    else:
+        raw_password = (payload.new_password or '').strip()
+        if len(raw_password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    user.hashed_password = get_password_hash(raw_password)
+    db.add(user)
+    db.commit()
+
+    # Do not return plaintext unless it was generated and must be shown once to admin
+    resp = { 'status': 'ok', 'user_id': user.id }
+    if temporary_password is not None:
+        resp['temporary_password'] = temporary_password
+    return resp
 
 @router.post("/{user_id}/activate", response_model=UserSchema)
 def activate_user(user_id: int, db: Session = Depends(get_db), admin_user: UserModel = Depends(get_current_admin_user)):

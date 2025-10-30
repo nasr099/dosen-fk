@@ -63,6 +63,9 @@
           <td style="padding:8px; text-align:right; white-space:nowrap;">
             <button class="btn-sm" @click="setPaid(u)">Set Paid</button>
             <button class="btn-sm gray" @click="setFree(u)">Set Free</button>
+            <span class="sep"></span>
+            <button class="btn-sm warn" title="Set a specific password" @click="resetPassword(u)">Reset PW</button>
+            <button class="btn-sm warn" title="Generate a temporary password" @click="generatePassword(u)">Gen Temp</button>
           </td>
         </tr>
       </tbody>
@@ -112,6 +115,38 @@ async function toggleTeacher(u){
   const next = !u.is_teacher
   await api.patch(`/users/${u.id}/teacher`, { is_teacher: next })
   await refresh()
+}
+
+async function resetPassword(u){
+  try {
+    const pw = window.prompt(`Enter a new password for ${u.email} (min 8 chars):`)
+    if (!pw) return
+    if (String(pw).length < 8){
+      alert('Password must be at least 8 characters')
+      return
+    }
+    await api.post(`/users/${u.id}/reset-password`, { new_password: pw })
+    alert('Password updated successfully')
+  } catch (e) {
+    alert('Failed to reset password')
+  }
+}
+
+async function generatePassword(u){
+  try {
+    const ok = window.confirm(`Generate a temporary password for ${u.email}?`)
+    if (!ok) return
+    const { data } = await api.post(`/users/${u.id}/reset-password`, { generate: true, length: 12 })
+    const temp = data?.temporary_password
+    if (temp){
+      try { await navigator.clipboard.writeText(temp) } catch {}
+      alert(`Temporary password (copied to clipboard):\n\n${temp}`)
+    } else {
+      alert('Temporary password generated')
+    }
+  } catch (e) {
+    alert('Failed to generate temporary password')
+  }
 }
 
 const filteredSorted = computed(() => {
@@ -168,5 +203,7 @@ async function setPlanSelected(plan){
 .badge.off{ background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
 .btn-sm{ padding:6px 10px; border-radius:8px; background:#2563eb; color:#fff; border:none; cursor:pointer; font-weight:600; }
 .btn-sm.gray{ background:#e2e8f0; color:#0f172a; }
+.btn-sm.warn{ background:#f59e0b; color:#0f172a; }
 .btn-sm:hover{ filter:brightness(.95); }
+.sep{ display:inline-block; width:8px; }
 </style>

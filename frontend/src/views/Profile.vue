@@ -1,4 +1,3 @@
-  .ana-chart-canvas{ height:180px !important; }
 <template>
   <div class="profile-layout single">
 
@@ -24,6 +23,58 @@
           </div>
           <div class="row"><span class="label">Valid Until</span><span class="value">{{ expiryText || '-' }}</span></div>
         </div>
+      </div>
+      <div class="card" style="padding:12px; display:flex; justify-content:flex-end;">
+        <button class="btn small secondary" @click="pwOpen=!pwOpen">
+          {{ pwOpen ? 'Hide Change Password' : 'Change Password' }}
+        </button>
+      </div>
+      <!-- Change Password: redesigned -->
+      <div class="card pw-card" v-show="pwOpen">
+        <div class="pw-head">
+          <div class="pw-title-wrap">
+            <div class="pw-icon" aria-hidden="true">🔒</div>
+            <h2 class="pw-title">Change Password</h2>
+          </div>
+          <div class="pw-hint">Use at least 8 characters. Mix upper/lowercase and numbers for a stronger password.</div>
+        </div>
+        <form class="pw-form" @submit.prevent="changePassword">
+          <div class="pw-grid">
+            <div class="pw-row">
+              <label>Current password</label>
+              <div class="input-group">
+                <input :type="showPwCurrent ? 'text' : 'password'" v-model="pwCurrent" required autocomplete="current-password" />
+                <button type="button" class="toggle" @click="showPwCurrent=!showPwCurrent">{{ showPwCurrent ? 'Hide' : 'Show' }}</button>
+              </div>
+            </div>
+            <div class="pw-row">
+              <label>New password</label>
+              <div class="input-group">
+                <input :type="showPwNew ? 'text' : 'password'" v-model="pwNew" required minlength="8" autocomplete="new-password" />
+                <button type="button" class="toggle" @click="showPwNew=!showPwNew">{{ showPwNew ? 'Hide' : 'Show' }}</button>
+              </div>
+              <div class="strength">
+                <div class="bar">
+                  <span :class="['s1', strengthLevel>=1?'on':'']"></span>
+                  <span :class="['s2', strengthLevel>=2?'on':'']"></span>
+                  <span :class="['s3', strengthLevel>=3?'on':'']"></span>
+                </div>
+                <div class="label" :class="strengthClass">{{ strengthLabel }}</div>
+              </div>
+            </div>
+            <div class="pw-row">
+              <label>Confirm new password</label>
+              <div class="input-group">
+                <input :type="showPwNew2 ? 'text' : 'password'" v-model="pwNew2" required minlength="8" autocomplete="new-password" />
+                <button type="button" class="toggle" @click="showPwNew2=!showPwNew2">{{ showPwNew2 ? 'Hide' : 'Show' }}</button>
+              </div>
+              <div v-if="pwNew && pwNew2 && pwNew!==pwNew2" class="mismatch">Passwords do not match</div>
+            </div>
+          </div>
+          <div class="pw-actions">
+            <button class="btn" type="submit" :disabled="pwBusy || !canSubmit">{{ pwBusy ? 'Saving…' : 'Change Password' }}</button>
+          </div>
+        </form>
       </div>
 
       <!-- Analytics moved below profile -->
@@ -145,6 +196,51 @@ import { useAuthStore } from '../store/auth';
 import Chart from 'chart.js/auto'
 
 const auth = useAuthStore();
+// password change state
+const pwCurrent = ref('')
+const pwNew = ref('')
+const pwNew2 = ref('')
+const pwBusy = ref(false)
+const pwOpen = ref(false)
+const showPwCurrent = ref(false)
+const showPwNew = ref(false)
+const showPwNew2 = ref(false)
+
+const strengthLevel = computed(()=>{
+  const v = pwNew.value || ''
+  let score = 0
+  if (v.length >= 8) score++
+  if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++
+  if (/[0-9]/.test(v)) score++
+  return Math.min(3, score)
+})
+const strengthLabel = computed(()=> ['Too short','Okay','Good','Strong'][strengthLevel.value] )
+const strengthClass = computed(()=> ['weak','ok','good','strong'][strengthLevel.value] )
+const canSubmit = computed(()=> pwCurrent.value && pwNew.value && pwNew2.value && pwNew.value.length>=8 && pwNew.value===pwNew2.value )
+
+async function changePassword(){
+  if (pwNew.value !== pwNew2.value){
+    alert('New password and confirmation do not match')
+    return
+  }
+  if ((pwNew.value||'').length < 8){
+    alert('New password must be at least 8 characters')
+    return
+  }
+  pwBusy.value = true
+  try{
+    await api.post('/users/me/change-password', { current_password: pwCurrent.value, new_password: pwNew.value })
+    alert('Password changed successfully')
+    pwCurrent.value = ''
+    pwNew.value = ''
+    pwNew2.value = ''
+    pwOpen.value = false
+  }catch(e){
+    alert(e?.response?.data?.detail || 'Failed to change password')
+  }finally{
+    pwBusy.value = false
+  }
+}
 const originalHistory = ref([]);
 const filteredHistory = ref([]);
 const allSets = ref([]);
@@ -403,6 +499,38 @@ function formatDate(dt) {
 .top3-list .t-title{ font-weight:700; color:#0f172a; }
 .top3-list .t-score{ background:#e0f2fe; color:#075985; border-radius:999px; padding:2px 8px; font-size:12px; font-weight:800; }
 .top3-list .t-sub{ color:#64748b; font-size:12px; margin-top:4px; }
+
+/* Password card beautification */
+.pw-card{ margin:16px 0; padding:20px; background:linear-gradient(180deg,#ffffff, #fbfdff); border:1px solid #e2e8f0; border-radius:14px; box-shadow: 0 6px 18px rgba(2,6,23,0.04); }
+.pw-head{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+.pw-title-wrap{ display:flex; align-items:center; gap:10px; }
+.pw-icon{ width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:#eef2ff; border:1px solid #c7d2fe; color:#3730a3; border-radius:10px; font-size:18px; }
+.pw-title{ margin:0; }
+.pw-hint{ color:#64748b; font-size:12px; }
+.pw-form{ display:block; }
+.pw-grid{ display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; }
+.pw-row{ display:flex; flex-direction:column; gap:6px; }
+.pw-row label{ font-weight:700; color:#0f172a; }
+.input-group{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #cbd5e1; border-radius:10px; padding:6px 8px; }
+.input-group input{ flex:1; border:none; outline:none; font-size:14px; }
+.input-group .toggle{ border:none; background:#f1f5f9; color:#0f172a; font-weight:600; padding:6px 10px; border-radius:8px; cursor:pointer; }
+.input-group .toggle:hover{ filter:brightness(.97); }
+.strength{ display:flex; align-items:center; gap:10px; margin-top:4px; }
+.strength .bar{ display:inline-flex; gap:6px; }
+.strength .bar span{ width:40px; height:6px; background:#e5e7eb; border-radius:999px; display:inline-block; }
+.strength .bar span.on.s1{ background:#f87171; }
+.strength .bar span.on.s2{ background:#f59e0b; }
+.strength .bar span.on.s3{ background:#10b981; }
+.strength .label{ font-size:12px; font-weight:700; color:#64748b; }
+.strength .label.ok{ color:#d97706; }
+.strength .label.good{ color:#16a34a; }
+.strength .label.strong{ color:#0d9488; }
+.mismatch{ color:#b91c1c; font-size:12px; margin-top:2px; }
+.pw-actions{ display:flex; justify-content:flex-end; margin-top:8px; }
+
+@media (max-width: 900px){
+  .pw-grid{ grid-template-columns: 1fr; }
+}
 
 /* Responsive */
 @media (max-width: 900px) {
