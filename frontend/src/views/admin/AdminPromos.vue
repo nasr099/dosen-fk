@@ -1,6 +1,8 @@
 <template>
-  <div class="card">
-    <h2>Promo Banners</h2>
+  <AdminLayout>
+    <template #title>Promos</template>
+    <div class="card">
+    <h2 style="margin-top:0">Promo Banners</h2>
     <form @submit.prevent="add">
       <input v-model="form.title" class="input" placeholder="Title" required />
       <input v-model="form.description" class="input" placeholder="Description" />
@@ -18,9 +20,11 @@
       </li>
     </ul>
   </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { onMounted, ref } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 import CdnUploader from '../../components/CdnUploader.vue'
 const promos = ref([])

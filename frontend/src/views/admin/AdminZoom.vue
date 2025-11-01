@@ -1,6 +1,8 @@
 <template>
-  <div class="card">
-    <h2>Zoom Discussions</h2>
+  <AdminLayout>
+    <template #title>Zoom Discussions</template>
+    <div class="card">
+    <h2 style="margin-top:0">Zoom Discussions</h2>
     <form class="toolbar" @submit.prevent>
       <input class="input" v-model="search" placeholder="Cari judul / presenter..." />
       <select class="input" v-model="filterMode">
@@ -64,9 +66,11 @@
       </div>
     </div>
   </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 
 const items = ref([])

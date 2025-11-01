@@ -1,6 +1,8 @@
 <template>
-  <div class="card">
-    <h2>Auth Page Branding</h2>
+  <AdminLayout>
+    <template #title>Branding</template>
+    <div class="card">
+    <h2 style="margin-top:0">Auth Page Branding</h2>
     <p style="color:#475569;">Update images used in Login & Register pages.</p>
 
     <div class="row">
@@ -44,9 +46,11 @@
       <button class="btn secondary" @click="reset">Reset to defaults</button>
     </div>
   </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { ref, onMounted } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 
 const logo = ref('')

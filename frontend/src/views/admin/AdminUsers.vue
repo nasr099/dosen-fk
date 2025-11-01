@@ -1,6 +1,6 @@
 <template>
-  <div class="card">
-    <h2>Users</h2>
+  <AdminLayout>
+    <template #title>Users</template>
     <div class="toolbar" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
       <input v-model="q" placeholder="Search email/name/phone" class="input" style="max-width:260px;" />
       <select v-model="filterAdmin" class="input">
@@ -27,25 +27,30 @@
         <button class="btn-sm gray" :disabled="selectedIds.length===0" @click="setPlanSelected('free')">Set Selected Free</button>
       </div>
     </div>
+    <div class="table-wrap">
     <table style="width:100%; border-collapse:collapse;">
       <thead>
         <tr>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px; width:28px;"><input type="checkbox" :checked="allVisibleChecked" @change="toggleAll($event.target.checked)"/></th>
-          <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Email</th>
-          <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Name</th>
+          <th class="col-email" style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Email</th>
+          <th class="col-name" style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Name</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Phone</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Admin</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Teacher</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Plan</th>
           <th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px;">Validity</th>
-          <th style="text-align:right; border-bottom:1px solid #e2e8f0; padding:8px;">Actions</th>
+          <th class="actions-col" style="text-align:right; border-bottom:1px solid #e2e8f0; padding:8px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="u in filteredSorted" :key="u.id">
           <td style="padding:8px; width:28px;"><input type="checkbox" :checked="selectedIds.includes(u.id)" @change="toggleOne(u.id, $event.target.checked)"/></td>
-          <td style="padding:8px;">{{ u.email }}</td>
-          <td style="padding:8px;">{{ u.full_name }}</td>
+          <td class="td-email" style="padding:8px;">
+            <span class="truncate email" :title="u.email">{{ u.email }}</span>
+          </td>
+          <td class="td-name" style="padding:8px;">
+            <span class="clamp2" :title="u.full_name">{{ u.full_name }}</span>
+          </td>
           <td style="padding:8px; white-space:nowrap;">{{ u.phone || '-' }}</td>
           <td style="padding:8px;">{{ u.is_admin ? 'Yes' : 'No' }}</td>
           <td style="padding:8px;">
@@ -60,21 +65,42 @@
             </select>
             <span class="muted" v-if="u.active_until">→ {{ formatDate(u.active_until) }}</span>
           </td>
-          <td style="padding:8px; text-align:right; white-space:nowrap;">
-            <button class="btn-sm" @click="setPaid(u)">Set Paid</button>
-            <button class="btn-sm gray" @click="setFree(u)">Set Free</button>
-            <span class="sep"></span>
-            <button class="btn-sm warn" title="Set a specific password" @click="resetPassword(u)">Reset PW</button>
-            <button class="btn-sm warn" title="Generate a temporary password" @click="generatePassword(u)">Gen Temp</button>
+          <td class="actions-cell actions-col">
+            <div class="actions">
+              <button class="btn-sm" @click="setPaid(u)" title="Set Paid">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </button>
+              <button class="btn-sm gray" @click="setFree(u)" title="Set Free">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                  <path d="M3 12h18"/>
+                </svg>
+              </button>
+              <button class="btn-sm warn" title="Reset Password" @click="resetPassword(u)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                  <path d="M12 11a4 4 0 1 0-4-4"/>
+                  <rect x="6" y="11" width="12" height="10" rx="2"/>
+                  <path d="M12 16v2"/>
+                </svg>
+              </button>
+              <button class="btn-sm warn" title="Generate Temporary Password" @click="generatePassword(u)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                  <path d="M13 2L3 14h7l-1 8 11-12h-7l1-8z"/>
+                </svg>
+              </button>
+            </div>
           </td>
         </tr>
       </tbody>
     </table>
-  </div>
+    </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { onMounted, ref, computed } from 'vue'
 import api from '../../api/client'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 const users = ref([])
 const q = ref('')
 const filterAdmin = ref('all')
@@ -201,9 +227,42 @@ async function setPlanSelected(plan){
 .badge{ padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; }
 .badge.ok{ background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
 .badge.off{ background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
-.btn-sm{ padding:6px 10px; border-radius:8px; background:#2563eb; color:#fff; border:none; cursor:pointer; font-weight:600; }
+.btn-sm{ padding:4px 8px; border-radius:8px; background:#2563eb; color:#fff; border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center; }
 .btn-sm.gray{ background:#e2e8f0; color:#0f172a; }
 .btn-sm.warn{ background:#f59e0b; color:#0f172a; }
 .btn-sm:hover{ filter:brightness(.95); }
 .sep{ display:inline-block; width:8px; }
+
+/* Make long text look neat with ellipsis */
+.truncate{ display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
+.truncate.email{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.clamp2{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; max-width: 100%; }
+/* Responsive content constraints so table columns can auto-size */
+.td-email .truncate{ max-width: clamp(180px, 30vw, 320px); }
+.td-name .clamp2{ max-width: clamp(140px, 22vw, 260px); }
+
+/* Prevent awkward wrapping inside table cells */
+.table-wrap table td{ vertical-align:top; }
+
+/* Prevent overflow in Actions column */
+.actions-cell{ padding:8px; text-align:right; vertical-align:top; }
+.actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  justify-content:flex-end;
+  margin-left:auto;
+  max-width:240px;
+}
+
+/* Sticky right column for Actions */
+.actions-col{ position:sticky; right:0; background:#fff; z-index:1; }
+thead .actions-col{ z-index:2; }
+
+.table-wrap{ overflow-x:auto; }
+
+/* Make buttons compact and wrap nicely on narrow screens */
+@media (max-width: 900px){
+  .actions{ max-width: 100%; justify-content:flex-start; }
+}
 </style>

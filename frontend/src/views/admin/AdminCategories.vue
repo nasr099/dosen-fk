@@ -1,6 +1,6 @@
 <template>
-  <div class="card">
-    <h2>Categories</h2>
+  <AdminLayout>
+    <template #title>Categories</template>
     <form class="new-cat" @submit.prevent="add">
       <input v-model="form.name" placeholder="Name" class="input" required />
       <input v-model="form.description" placeholder="Description" class="input" />
@@ -192,12 +192,12 @@
     </table>
     <!-- close sub-section -->
   </div>
-  </div>
-  <!-- close .card -->
+  </AdminLayout>
 </template>
 <script setup>
 import { onMounted, ref, computed } from 'vue'
 import api from '../../api/client'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 const categories = ref([])
 const form = ref({ name: '', description: '' })
 const setsByCat = ref({})

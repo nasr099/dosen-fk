@@ -31,6 +31,8 @@ class QuestionBase(BaseModel):
     question_text: str
     # 'mcq' | 'essay'
     question_type: str = "mcq"
+    # Optional shared reading passage reference
+    reading_id: Optional[int] = None
     option_a: str
     option_b: str
     option_c: str

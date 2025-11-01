@@ -1,6 +1,9 @@
 <template>
-  <div class="card">
-    <h2>Questions</h2>
+  <AdminLayout>
+    <template #title>Questions</template>
+    <div class="card">
+    
+    <h2 style="margin-top:0">Questions</h2>
 
     
     <div class="builder">
@@ -33,6 +36,25 @@
               <option value="multi">Multiple Answers</option>
               <option value="essay">Essay</option>
             </select>
+          </div>
+          <div class="row" style="margin-bottom:6px;">
+            <label style="font-weight:600;">Reading (optional)</label>
+            <div class="reading-row">
+              <select v-model.number="q.reading_id" class="input" style="max-width:360px;">
+                <option :value="0">None</option>
+                <option v-for="r in readings" :key="r.id" :value="r.id">{{ r.title }}</option>
+              </select>
+              <button class="btn tiny secondary" :disabled="!q.reading_id" @click="previewReading(q.reading_id)">Preview</button>
+              <a class="btn tiny secondary" href="/admin/readings" target="_blank" rel="noopener">Manage</a>
+            </div>
+          </div>
+          <!-- Inline Reading Preview (shown just above question text) -->
+          <div v-if="previewReadingId && q.reading_id === previewReadingId" class="reading-preview">
+            <div class="rp-head">
+              <strong>{{ readingById(previewReadingId)?.title }}</strong>
+              <button class="btn tiny secondary" @click="previewReadingId=null">Close</button>
+            </div>
+            <div class="rp-body" v-html="readingById(previewReadingId)?.content_html"></div>
           </div>
           <label style="font-weight:600; margin-bottom:4px; display:block;">Question text</label>
           <RichTextEditor v-model="q.question_text" placeholder="Write the question here..." />
@@ -130,6 +152,7 @@
           <li v-for="(msg, i) in builderIssues" :key="i">{{ msg }}</li>
         </ul>
       </div>
+      
     </div>
     <div class="sets-wrap">
       <h3>Sets Overview</h3>
@@ -179,16 +202,18 @@
       </table>
     </div>
   </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { onMounted, ref, computed } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 import RichTextEditor from '../../components/RichTextEditor.vue'
 import CdnUploader from '../../components/CdnUploader.vue'
 import { useRouter } from 'vue-router'
 const categories = ref([])
 const subCategories = computed(() => (categories.value || []).filter(c => !!c.parent_id))
-const mode = ref('import') // 'manual' | 'import'
+const mode = ref('manual') // 'manual' | 'import'
 const sets = ref([])
 const selectedCategoryId = ref(null)
 const selectedSetId = ref(null)
@@ -200,6 +225,10 @@ const overviewSort = ref('newest')
 const overviewCategoryId = ref(null)
 // Set Builder state
 const builder = ref({ category_id:'', title:'', description:'', time_limit_minutes:105, questions: [] })
+const readings = ref([])
+const previewReadingId = ref(null)
+function readingById(id){ return readings.value.find(r => r.id === id) }
+function previewReading(id){ previewReadingId.value = id }
 // Import (new set) state
 const xlsxFileNew = ref(null)
 const importingNew = ref(false)
@@ -213,6 +242,7 @@ const router = useRouter()
 async function load(){
   const { data: cats } = await api.get('/categories/')
   categories.value = cats
+  try{ const { data: rs } = await api.get('/readings/') ; readings.value = rs } catch{}
   await refreshSetsOverview()
 }
 
@@ -355,7 +385,7 @@ function addBuilderQuestion(type='mcq'){
       question_text:'', question_img:'',
       options:[ { text:'', img:'' }, { text:'', img:'' }, { text:'', img:'' } ],
       correct_idxs: [],
-      explanation:'', is_featured:false, difficulty_level:'medium'
+      explanation:'', is_featured:false, difficulty_level:'medium', reading_id: null
     })
   } else {
     builder.value.questions.push({
@@ -363,7 +393,7 @@ function addBuilderQuestion(type='mcq'){
       question_text:'', question_img:'',
       options:[ { text:'', img:'' }, { text:'', img:'' }, { text:'', img:'' } ],
       correct_idx: 0,
-      explanation:'', is_featured:false, difficulty_level:'medium'
+      explanation:'', is_featured:false, difficulty_level:'medium', reading_id: null
     })
   }
 }
@@ -456,6 +486,7 @@ async function saveSetWithQuestions(){
         is_featured: q.is_featured,
         difficulty_level: q.difficulty_level,
         question_type: q.type || 'mcq',
+        reading_id: q.reading_id || null,
       }
       if ((q.type||'mcq') === 'essay'){
         return { ...base, option_a:'', option_b:'', option_c:'', option_d:'', option_e:'', correct_answer:'' }
@@ -590,6 +621,19 @@ async function doImportNew(){
 .builder-actions { display:flex; gap:8px; }
 .issues{ margin-top:8px; padding:8px; border:1px solid #fee2e2; background:#fef2f2; border-radius:8px; color:#7f1d1d; }
 .issues .issue-title{ font-weight:700; margin-bottom:4px; }
+.reading-preview{ margin:6px 0 10px; background:#fff; border:1px solid #e2e8f0; border-left:4px solid #6366f1; border-radius:10px; box-shadow:0 6px 16px rgba(2,6,23,0.05); overflow:hidden; }
+.reading-preview .rp-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; background:linear-gradient(90deg, rgba(99,102,241,0.12), rgba(99,102,241,0.06)); border-bottom:1px solid #e5e7eb; }
+.reading-preview .rp-head strong{ font-weight:800; color:#111827; }
+.reading-preview .rp-body{ padding:10px 12px; color:#1f2937; line-height:1.85; letter-spacing:0.1px; }
+.reading-preview .rp-body :deep(p){ margin:0 0 10px; }
+.reading-preview .rp-body :deep(h1),
+.reading-preview .rp-body :deep(h2),
+.reading-preview .rp-body :deep(h3){ margin:8px 0 6px; line-height:1.3; }
+.reading-preview .rp-body :deep(ul),
+.reading-preview .rp-body :deep(ol){ padding-left:22px; margin:6px 0 10px; }
+.reading-preview .rp-body :deep(img){ max-width:100%; border-radius:8px; display:block; margin:8px auto; }
+.reading-preview .rp-body :deep(blockquote){ border-left:3px solid #93c5fd; background:#f0f9ff; margin:8px 0; padding:8px 12px; border-radius:6px; color:#0c4a6e; }
+.reading-preview .rp-body :deep(a){ color:#2563eb; text-decoration:underline; }
 .sets-wrap { margin-top:24px; }
 .sets-toolbar{ display:flex; gap:8px; align-items:center; margin:8px 0; }
 .sets-table{ width:100%; border-collapse:separate; border-spacing:0; }

@@ -1,6 +1,8 @@
 <template>
-  <div class="card">
-    <h2>{{ isNew ? 'New Post' : 'Edit Post' }}</h2>
+  <AdminLayout>
+    <template #title>{{ isNew ? 'New Post' : 'Edit Post' }}</template>
+    <div class="card">
+    <h2 style="margin-top:0">{{ isNew ? 'New Post' : 'Edit Post' }}</h2>
     <div class="form-grid">
       <div class="row full"><label>Title</label><input v-model="form.title" class="input" /></div>
       <div class="row"><label>Slug</label><input v-model="form.slug" class="input" placeholder="my-post-slug" /></div>
@@ -21,10 +23,12 @@
       <router-link class="btn secondary" to="/admin/blog">Back</router-link>
     </div>
   </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { onMounted, ref, computed } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api/client'
 import RichTextEditor from '../../components/RichTextEditor.vue'

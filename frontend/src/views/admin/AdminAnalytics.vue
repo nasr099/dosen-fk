@@ -1,6 +1,8 @@
 <template>
-  <div class="card analytics">
-    <h2>Analytics</h2>
+  <AdminLayout>
+    <template #title>Analytics</template>
+    <div class="card analytics">
+    <h2 style="margin-top:0">Analytics</h2>
 
     <h3>Sets Overview</h3>
     <div class="card" style="padding:12px;">
@@ -47,11 +49,11 @@
     <div class="grid-2">
       <div class="card card-chart" style="padding:12px;">
         <h4>Trends: Objective vs Essay</h4>
-        <canvas ref="trendRef" height="140"></canvas>
+        <canvas ref="trendRef" class="chart-canvas"></canvas>
       </div>
       <div class="card card-chart" style="padding:12px;">
         <h4>Sessions Completed</h4>
-        <canvas ref="sessionsRef" height="140"></canvas>
+        <canvas ref="sessionsRef" class="chart-canvas"></canvas>
       </div>
       </div>
     </div>
@@ -203,9 +205,11 @@
       </div>
     </div>
   </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 import Chart from 'chart.js/auto'
 
@@ -277,7 +281,7 @@ async function loadCharts(){
       { label: 'Objective %', data: obj, tension: .25, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)', pointRadius: 2, fill: true },
       { label: 'Essay %', data: ess, tension: .25, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.2)', pointRadius: 2, fill: true },
     ]},
-    options: { responsive: true, interaction:{ mode:'index', intersect:false }, plugins:{ tooltip:{ enabled:true } }, scales: { y: { min:0, max:100, grid:{ color:'#eef2f7' } }, x:{ grid:{ display:false } } } }
+    options: { responsive: true, maintainAspectRatio: false, interaction:{ mode:'index', intersect:false }, plugins:{ tooltip:{ enabled:true } }, scales: { y: { min:0, max:100, grid:{ color:'#eef2f7' } }, x:{ grid:{ display:false } } } }
   })
   // sessions completed (per bucket)
   const counts = tdata.items.map(i => i.count || 0)
@@ -285,7 +289,7 @@ async function loadCharts(){
   sessionsChart = new Chart(sessionsRef.value, {
     type: 'bar',
     data: { labels, datasets: [{ label: 'Sessions', data: counts, backgroundColor: 'rgba(2,132,199,0.6)' }] },
-    options: { responsive: true, plugins:{ tooltip:{ enabled:true } }, scales:{ y:{ beginAtZero:true, grid:{ color:'#eef2f7' } }, x:{ grid:{ display:false } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins:{ tooltip:{ enabled:true } }, scales:{ y:{ beginAtZero:true, grid:{ color:'#eef2f7' } }, x:{ grid:{ display:false } } } }
   })
 }
 
@@ -354,7 +358,10 @@ onMounted(loadInsights)
 .mini-left{ display:flex; align-items:center; gap:6px; }
 .mini-right{ display:flex; align-items:center; gap:6px; }
 .btn.tiny{ padding:4px 8px; font-size:12px; border-radius:8px; }
-.card-chart canvas{ width:100% !important; height:auto !important; display:block; }
+.card-chart{ min-height: 320px; }
+.chart-canvas{ width:100% !important; height:280px !important; display:block; }
+@media (min-width: 1200px){ .chart-canvas{ height:320px !important; } }
+@media (max-width: 700px){ .chart-canvas{ height:220px !important; } }
 
 @media (max-width: 1100px){
   .grid-2{ grid-template-columns: 1fr; }

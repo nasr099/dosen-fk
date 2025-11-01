@@ -1,5 +1,5 @@
 <template>
-  <footer class="footer-wrap">
+  <footer class="footer-wrap" :class="{ 'is-admin': isAdminRoute }">
     <div class="container footer">
       <div class="col brand">
         <div class="brand-row">
@@ -52,7 +52,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 const logoSrc = ref('/logo.svg')
 const footer = ref({
   company: 'MedExam',
@@ -86,10 +87,15 @@ onMounted(() => {
 function isInternal(url){
   return typeof url === 'string' && url.startsWith('/')
 }
+
+const route = useRoute()
+const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 </script>
 
 <style scoped>
 .footer-wrap{ background:#fff; color: var(--text); margin-top: 24px; border-top: 1px solid var(--border); }
+.footer-wrap.is-admin{ margin-top: 0; }
+.footer-wrap.is-admin .footer{ padding-top: 16px; }
 .footer-wrap .container{ margin: 0 auto 0 !important; }
 .footer{ display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 24px; padding: 32px 16px 12px; }
 .brand .brand-row{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }

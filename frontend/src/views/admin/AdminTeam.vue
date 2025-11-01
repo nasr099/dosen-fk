@@ -1,6 +1,8 @@
 <template>
-  <div class="card">
-    <h2>Team Page</h2>
+  <AdminLayout>
+    <template #title>Team</template>
+    <div class="card">
+    <h2 style="margin-top:0">Team Page</h2>
     <p class="muted">Manage team members displayed on the public Team page.</p>
 
     <form class="new" @submit.prevent="add">
@@ -69,9 +71,11 @@
       </div>
     </div>
   </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { ref, onMounted } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 import CdnUploader from '../../components/CdnUploader.vue'
 

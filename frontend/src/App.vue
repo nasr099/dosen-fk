@@ -1,9 +1,7 @@
 <template>
   <div>
     <NavBar />
-    <main class="container">
-      <router-view />
-    </main>
+    <main :class="['container', { 'admin-full': isAdminRoute }]"><router-view /></main>
     <SiteFooter />
   </div>
 </template>
@@ -11,6 +9,11 @@
 <script setup>
 import NavBar from './components/NavBar.vue'
 import SiteFooter from './components/SiteFooter.vue'
+import { useRoute } from 'vue-router'
+import { computed } from 'vue'
+
+const route = useRoute()
+const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 </script>
 
 <style>
@@ -23,6 +26,9 @@ import SiteFooter from './components/SiteFooter.vue'
   --muted: #6b7280;          /* secondary text */
   --accent: #2563eb;         /* primary action */
 
+  /* Shared header height (matches NavBar.vue 60px) */
+  --header-h: 60px;
+
   /* Global radius scale */
   --radius-card: 12px;
   --radius-input: 8px;
@@ -31,6 +37,9 @@ import SiteFooter from './components/SiteFooter.vue'
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background: var(--app-bg); color: var(--text); }
 .container, body, html, * , *::before, *::after { box-sizing: border-box; }
 .container { max-width: 1280px; margin: 0 auto 24px; padding: 0 8px; }
+.container.admin-full { max-width: none; padding: 0; margin: 0; }
+/* Remove extra top spacing under navbar for admin pages */
+main.container.admin-full { padding-top: 0; min-height: calc(100vh - var(--header-h)); }
 .container-fluid { width: 100%; margin: 0 auto; padding: 0; }
 /* space below navbar */
 main.container { padding-top: 12px; }

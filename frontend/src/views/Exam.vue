@@ -10,7 +10,16 @@
     </div>
     <div class="exam-body">
       <div class="left">
-        <div v-for="(q, idx) in questions" :key="q.id" v-show="idx === currentIndex" class="question-card">
+        <div v-for="(q, idx) in questions" :key="q.id">
+          <div v-if="idx === currentIndex" class="question-card" :id="`qcard-${idx}`">
+          <div v-if="q.reading_id && readingById(q.reading_id)" class="reading-card" :class="{ collapsed: collapsedReading[q.reading_id] }">
+            <div class="reading-head">
+              <strong class="reading-title">{{ readingById(q.reading_id).title }}</strong>
+              <button class="btn tiny secondary" @click="toggleReading(q.reading_id)">{{ collapsedReading[q.reading_id] ? 'Show' : 'Hide' }}</button>
+            </div>
+            <div class="reading-body" v-show="!collapsedReading[q.reading_id]" v-html="renderHTML(readingById(q.reading_id).content_html)"></div>
+            <div class="q-divider" style="margin-top:8px;"></div>
+          </div>
           <div class="q-top">
             <div class="q-top-left"><span class="pill strong">Soal {{ idx+1 }}</span><span class="of">dari {{ questions.length }}</span></div>
             <div class="q-top-right">
@@ -66,6 +75,7 @@
                 />
               </span>
             </label>
+          </div>
           </div>
         </div>
         <div class="nav-row">
@@ -162,7 +172,19 @@ const loaded = ref(false)
 const examSessionId = ref(null)
 const totalQuestions = ref(0)
 const questions = ref([])
+const readingsMap = ref({})
 const answers = ref({})
+const collapsedReading = ref({})
+
+// helpers for rendering reading passages
+function readingById(id){
+  if (!id) return null
+  return readingsMap.value[id] || null
+}
+function toggleReading(id){
+  if (!id) return
+  collapsedReading.value[id] = !collapsedReading.value[id]
+}
 
 onUnmounted(() => {
   removeGuards()
@@ -319,9 +341,9 @@ function renderHTML(html){
   return renderMathHTML(div.innerHTML)
 }
 
-function renderMathDOM(){
+function renderMathDOM(rootEl){
   try{
-    const root = document.querySelector('.left') || document.body
+    const root = rootEl || document.getElementById(`qcard-${currentIndex.value}`) || document.querySelector('.left') || document.body
     renderMathInElement(root, {
       delimiters: [
         { left: '$$', right: '$$', display: true },
@@ -339,9 +361,25 @@ function renderMathDOM(){
 function openLightbox(url){ lightboxUrl.value = url }
 function closeLightbox(){ lightboxUrl.value = '' }
 
-function prev(){ if (currentIndex.value > 0){ currentIndex.value--; ensureFullscreen(); nextTick(renderMathDOM) } }
-function next(){ if (currentIndex.value < questions.value.length-1){ currentIndex.value++; ensureFullscreen(); nextTick(renderMathDOM) } }
-function go(i){ currentIndex.value = i; ensureFullscreen(); nextTick(renderMathDOM) }
+function prev(){
+  if (currentIndex.value > 0){
+    currentIndex.value--
+    ensureFullscreen()
+    nextTick(() => requestAnimationFrame(() => renderMathDOM()))
+  }
+}
+function next(){
+  if (currentIndex.value < questions.value.length-1){
+    currentIndex.value++
+    ensureFullscreen()
+    nextTick(() => requestAnimationFrame(() => renderMathDOM()))
+  }
+}
+function go(i){
+  currentIndex.value = i
+  ensureFullscreen()
+  nextTick(() => requestAnimationFrame(() => renderMathDOM()))
+}
 function toggleFlag(qid){
   flagged.value[qid] = !flagged.value[qid]
 }
@@ -388,6 +426,13 @@ onMounted(async () => {
     const params = setId ? { question_set_id: setId } : { category_id: categoryId }
     const { data: qs } = await api.get('/questions/', { params })
     questions.value = qs
+    // Fetch readings for any referenced reading_id
+    const ids = Array.from(new Set((qs || []).map(q => q.reading_id).filter(Boolean)))
+    if (ids.length){
+      await Promise.all(ids.map(async (id) => {
+        try { const { data } = await api.get(`/readings/${id}`); readingsMap.value[id] = data } catch {}
+      }))
+    }
     await nextTick()
     renderMathDOM()
 
@@ -584,6 +629,23 @@ onMounted(async () => {
 .cell.multi{ position:relative; }
 .cell.multi::after{ content:'M'; position:absolute; top:-6px; right:-6px; background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; width:16px; height:16px; font-size:11px; line-height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; }
 .question-card{ background:white; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
+.reading-card{ margin:12px 12px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #6366f1; border-radius:12px; box-shadow: 0 6px 16px rgba(2,6,23,0.05); overflow:hidden; position: sticky; top: 0; z-index: 2; }
+.reading-card.collapsed{ box-shadow:none; }
+.reading-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; background:linear-gradient(90deg, rgba(99,102,241,0.12), rgba(99,102,241,0.06)); border-bottom:1px solid #e5e7eb; }
+.reading-title{ font-weight:800; font-size:16px; color:#111827; }
+.reading-body{ padding:12px 14px; color:#1f2937; line-height:1.9; letter-spacing:0.1px; background:white; }
+.reading-body :deep(p){ margin: 0 0 10px; }
+.reading-body :deep(h1),
+.reading-body :deep(h2),
+.reading-body :deep(h3){ margin: 8px 0 6px; line-height:1.3; }
+.reading-body :deep(ul),
+.reading-body :deep(ol){ padding-left: 22px; margin: 6px 0 10px; }
+.reading-body :deep(img){ max-width: 100%; border-radius:8px; display:block; margin:8px auto; }
+.reading-body :deep(blockquote){ border-left:3px solid #93c5fd; background:#f0f9ff; margin:8px 0; padding:8px 12px; border-radius:6px; color:#0c4a6e; }
+.reading-body :deep(a){ color:#2563eb; text-decoration: underline; }
+.reading-card .btn.tiny.secondary{ background:#ffffff; border:1px solid #c7d2fe; color:#3730a3; }
+.reading-card .btn.tiny.secondary:hover{ background:#eef2ff; }
+.reading-card + .q-top{ margin-top: 6px; }
 .q-top{ display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background: linear-gradient(90deg, #4f46e5, #6366f1); color:white; }
 .q-top .pill.strong{ background:rgba(255,255,255,.2); color:#fff; border-radius:10px; padding:4px 10px; font-weight:800; }
 .q-top .of{ margin-left:8px; opacity:.9; }

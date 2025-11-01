@@ -1,6 +1,8 @@
 <template>
-  <div class="card">
-    <h2>Edit Test Set</h2>
+  <AdminLayout>
+    <template #title>Edit Set</template>
+    <div class="card">
+    <h2 style="margin-top:0">Edit Test Set</h2>
 
     <div v-if="loading" class="muted">Loading...</div>
     <div v-else>
@@ -39,6 +41,16 @@
               <option value="multi">Multiple Answers</option>
               <option value="essay">Essay</option>
             </select>
+          </div>
+          <div class="row" style="margin-bottom:6px;">
+            <label style="font-weight:600;">Reading (optional)</label>
+            <div class="reading-row">
+              <select v-model.number="q.reading_id" class="input" style="max-width:360px;">
+                <option :value="0">None</option>
+                <option v-for="r in readings" :key="r.id" :value="r.id">{{ r.title }}</option>
+              </select>
+              <a class="btn tiny secondary" href="/admin/readings" target="_blank" rel="noopener">Manage</a>
+            </div>
           </div>
           <div class="q-rich">
             <label>Question text</label>
@@ -142,10 +154,12 @@
       </div>
     </div>
   </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { onMounted, ref, computed } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api/client'
 import RichTextEditor from '../../components/RichTextEditor.vue'
@@ -159,6 +173,7 @@ const loading = ref(true)
 const setData = ref({})
 const categories = ref([])
 const form = ref({ title:'', description:'', time_limit_minutes:60, is_active:true, questions:[] })
+const readings = ref([])
 const xlsxFile = ref(null)
 const importing = ref(false)
 const importResult = ref(null)
@@ -260,13 +275,15 @@ async function doImport(){
 }
 
 onMounted(async () => {
-  const [{ data: cats }, { data: setInfo }, { data: qs }] = await Promise.all([
+  const [{ data: cats }, { data: setInfo }, { data: qs }, { data: rs }] = await Promise.all([
     api.get('/categories/'),
     api.get(`/sets/${setId}`),
-    api.get('/questions/', { params: { question_set_id: setId } })
+    api.get('/questions/', { params: { question_set_id: setId } }),
+    api.get('/readings/')
   ])
   categories.value = cats
   setData.value = setInfo
+  readings.value = rs
   form.value = {
     title: setInfo.title,
     description: setInfo.description || '',
@@ -282,7 +299,7 @@ onMounted(async () => {
           _text: pr.text,
           _img: pr.img,
           options:[], correct_idx:null,
-          explanation: q.explanation || '',
+          explanation: q.explanation || '', reading_id: q.reading_id || null,
           is_featured: q.is_featured || false,
           difficulty_level: q.difficulty_level || 'medium',
         })
@@ -300,7 +317,7 @@ onMounted(async () => {
           _img: pr.img,
           options: options.length ? options : [{ text:'', img:'' }],
           correct_idxs,
-          explanation: q.explanation || '',
+          explanation: q.explanation || '', reading_id: q.reading_id || null,
           is_featured: q.is_featured || false,
           difficulty_level: q.difficulty_level || 'medium',
         })
@@ -314,7 +331,7 @@ onMounted(async () => {
           _img: pr.img,
           options: options.length ? options : [{ text:'', img:'' }],
           correct_idx,
-          explanation: q.explanation || '',
+          explanation: q.explanation || '', reading_id: q.reading_id || null,
           is_featured: q.is_featured || false,
           difficulty_level: q.difficulty_level || 'medium',
         })
@@ -369,6 +386,7 @@ async function save(){
         is_featured: q.is_featured,
         difficulty_level: q.difficulty_level,
         question_type: q.type || 'mcq',
+        reading_id: q.reading_id || null,
       }
       if ((q.type||'mcq') === 'essay'){
         return { ...base, option_a:'', option_b:'', option_c:'', option_d:'', option_e:'', correct_answer:'' }

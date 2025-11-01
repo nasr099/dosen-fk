@@ -1,5 +1,7 @@
 <template>
-  <div class="card">
+  <AdminLayout>
+    <template #title>Blog</template>
+    <div class="card">
     <div class="head">
       <h2>Blog Posts</h2>
       <router-link to="/admin/blog/new"><button class="btn">+ New Post</button></router-link>
@@ -27,10 +29,12 @@
       </tbody>
     </table>
   </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 
 const posts = ref([])

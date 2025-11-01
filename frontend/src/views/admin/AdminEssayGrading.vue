@@ -1,6 +1,8 @@
 <template>
-  <div class="card">
-    <h2>Essay Grading</h2>
+  <AdminLayout>
+    <template #title>Essay Grading</template>
+    <div class="card">
+    <h2 style="margin-top:0">Essay Grading</h2>
     <form class="filters" @submit.prevent="apply">
       <input class="input" v-model="q" placeholder="Search by question text or user email" />
       <select class="input" v-model.number="setId">
@@ -87,9 +89,11 @@
       </div>
     </div>
   </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 
 const rows = ref([])

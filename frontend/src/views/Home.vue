@@ -5,57 +5,78 @@
   <!-- Payment How-To Section -->
   <div class="card pay-steps">
     <h2 class="pay-title">Akses Konten Premium dalam 3 Langkah Mudah</h2>
-    <div class="steps">
-      <div class="step">
-        <div class="illo chat">
-          <!-- Chat / WhatsApp-like bubble -->
-          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <defs>
-              <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#22c55e"/>
-                <stop offset="100%" stop-color="#06b6d4"/>
-              </linearGradient>
-            </defs>
-            <rect x="6" y="8" width="52" height="36" rx="10" fill="url(#g1)" opacity=".15"/>
-            <path d="M12 20h24M12 28h36M12 36h22" stroke="#06b6d4" stroke-width="3" stroke-linecap="round"/>
-            <path d="M28 48l8-8h20" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
-            <circle cx="50" cy="18" r="4" fill="#22c55e"/>
+    <div class="pay-row">
+      <div class="pay-left">
+        <template v-if="premiumImg">
+          <img :src="premiumImg" alt="medical team" class="pay-hero" />
+        </template>
+        <template v-else>
+          <!-- lightweight fallback illustration -->
+          <svg class="pay-hero-svg" viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="100%" height="100%" rx="14" fill="#f0f7ff"/>
+            <circle cx="120" cy="190" r="52" fill="#1f2937"/>
+            <rect x="72" y="240" width="96" height="48" rx="18" fill="#ffffff" stroke="#c7d2fe"/>
+            <circle cx="260" cy="190" r="52" fill="#1f2937"/>
+            <rect x="212" y="240" width="96" height="48" rx="18" fill="#ffffff" stroke="#c7d2fe"/>
+            <circle cx="400" cy="190" r="52" fill="#1f2937"/>
+            <rect x="352" y="240" width="96" height="48" rx="18" fill="#ffffff" stroke="#c7d2fe"/>
+            <circle cx="540" cy="190" r="52" fill="#1f2937"/>
+            <rect x="492" y="240" width="96" height="48" rx="18" fill="#ffffff" stroke="#c7d2fe"/>
           </svg>
-        </div>
-        <div class="step-head">1. Hubungi Admin via WhatsApp</div>
-        <div class="step-desc">Klik tombol di bawah dan sampaikan paket yang Anda inginkan.</div>
+        </template>
       </div>
-      <div class="step">
-        <div class="illo pay">
-          <!-- Payment card + link icon -->
-          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect x="10" y="14" width="44" height="28" rx="6" fill="#fff7ed" stroke="#f59e0b"/>
-            <rect x="14" y="26" width="36" height="4" rx="2" fill="#f59e0b"/>
-            <rect x="14" y="20" width="14" height="3" rx="1.5" fill="#f59e0b"/>
-            <g transform="translate(0,8)">
-              <path d="M40 36c2.2 0 4-1.8 4-4 0-1-.4-2-1.1-2.7l-1.9-1.9c-.8-.8-.8-2 0-2.8s2-.8 2.8 0l1.9 1.9C46.4 26.4 47 28 47 30c0 3.9-3.1 7-7 7h-3" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round"/>
-              <path d="M32 34c-2.2 0-4 1.8-4 4 0 1 .4 2 1.1 2.7l1.9 1.9c.8.8.8 2 0 2.8s-2 .8-2.8 0l-1.9-1.9C24.6 42.6 24 41 24 39c0-3.9 3.1-7 7-7h3" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round"/>
-            </g>
-          </svg>
+      <div class="pay-right">
+        <div class="steps">
+          <div
+            class="step collapsible"
+            :class="{ open: isOpen(1) }"
+            @click="toggleStep(1)"
+            @mouseenter="hoverIdx=1" @mouseleave="hoverIdx=null"
+            @focus="hoverIdx=1" @blur="hoverIdx=null"
+            role="button" tabindex="0"
+          >
+            <div class="step-head">1. Hubungi Admin via WhatsApp</div>
+            <transition name="expand">
+              <div class="step-desc-wrap" v-show="isOpen(1)">
+                <div class="step-desc">Klik tombol di bawah dan sampaikan paket yang Anda inginkan.</div>
+              </div>
+            </transition>
+          </div>
+          <div
+            class="step collapsible"
+            :class="{ open: isOpen(2) }"
+            @click="toggleStep(2)"
+            @mouseenter="hoverIdx=2" @mouseleave="hoverIdx=null"
+            @focus="hoverIdx=2" @blur="hoverIdx=null"
+            role="button" tabindex="0"
+          >
+            <div class="step-head">2. Lakukan Pembayaran</div>
+            <transition name="expand">
+              <div class="step-desc-wrap" v-show="isOpen(2)">
+                <div class="step-desc">Admin akan mengirimkan link pembayaran Resmi. Selesaikan pembayaran Anda melalui link tersebut.</div>
+              </div>
+            </transition>
+          </div>
+          <div
+            class="step collapsible"
+            :class="{ open: isOpen(3) }"
+            @click="toggleStep(3)"
+            @mouseenter="hoverIdx=3" @mouseleave="hoverIdx=null"
+            @focus="hoverIdx=3" @blur="hoverIdx=null"
+            role="button" tabindex="0"
+          >
+            <div class="step-head">3. Aktivasi Akun</div>
+            <transition name="expand">
+              <div class="step-desc-wrap" v-show="isOpen(3)">
+                <div class="step-desc">Admin mengkonfirmasi pembayaran Anda. Akun Anda langsung diaktifkan! Akses konten premium sekarang.</div>
+              </div>
+            </transition>
+          </div>
         </div>
-        <div class="step-head">2. Lakukan Pembayaran</div>
-        <div class="step-desc">Admin akan mengirimkan link pembayaran Resmi. Selesaikan pembayaran Anda melalui link tersebut.</div>
-      </div>
-      <div class="step">
-        <div class="illo check">
-          <!-- Activation / verified badge -->
-          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <circle cx="32" cy="32" r="20" fill="#dcfce7" stroke="#16a34a"/>
-            <path d="M22 33l7 7 15-15" stroke="#16a34a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="32" cy="32" r="26" fill="none" stroke="#86efac" stroke-dasharray="6 6"/>
-          </svg>
+        <div class="pay-cta">
+          <a class="btn upgrade" :href="whatsLink" target="_blank" rel="noopener noreferrer">Upgrade Akun</a>
         </div>
-        <div class="step-head">3. Aktivasi Akun</div>
-        <div class="step-desc">Admin mengkonfirmasi pembayaran Anda. Akun Anda langsung diaktifkan! Akses konten premium sekarang.</div>
       </div>
-    </div>
-    <div class="pay-cta">
-      <a class="btn upgrade" :href="whatsLink" target="_blank" rel="noopener noreferrer">Upgrade Akun</a>
     </div>
   </div>
 
@@ -225,6 +246,12 @@ import api from '../api/client'
 import { buildWaLink } from '../config/whatsapp'
 
 const whatsLink = buildWaLink('Halo Admin, saya ingin upgrade akun premium.')
+const premiumImg = ref('https://medexam-assets-prod.sgp1.cdn.digitaloceanspaces.com/uploads/Gemini_Generated_Image_p2452ep2452ep245.png')
+// multiple-open support
+const openSteps = ref({ 1:false, 2:false, 3:false })
+const hoverIdx = ref(null)
+function toggleStep(i){ openSteps.value[i] = !openSteps.value[i] }
+function isOpen(i){ return !!openSteps.value[i] || hoverIdx.value === i }
 const categories = ref([])
 const headCategories = computed(() => categories.value.filter(c => !c.parent_id))
 const headHero = computed(() => {
@@ -599,17 +626,38 @@ onUnmounted(() => { window.removeEventListener('resize', updatePerPage); window.
 .home-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 
 /* Pay steps */
-.pay-steps{ margin:18px 0; }
-.pay-title{ margin:0 0 10px; text-align:center; }
-.steps{ display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
-.step{ background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
-.illo{ width:100%; height:120px; display:flex; align-items:center; justify-content:center; }
-.illo svg{ width:120px; height:120px; }
-.step-head{ font-weight:800; color:#0f172a; }
-.step-desc{ color:#475569; line-height:1.6; }
-.pay-cta{ display:flex; justify-content:center; margin-top:10px; }
-.btn.upgrade{ background:#f97316; color:#fff; border:none; padding:10px 16px; border-radius:10px; text-decoration:none; font-weight:800; }
-@media (max-width: 900px){ .steps{ grid-template-columns: 1fr; } .illo{ height:96px; } .illo svg{ width:96px; height:96px; } }
+.pay-steps{ margin:18px 0; padding:16px 16px 14px; background:linear-gradient(180deg,#eaf6ff,#f5fbff); border:1px solid #cfe7ff; border-radius:16px; box-shadow: 0 14px 34px rgba(30,64,175,0.08), 0 2px 6px rgba(2,6,23,0.04); }
+.pay-title{ margin:0 0 14px; text-align:center; font-weight:900; letter-spacing:.2px; color:#0f172a; }
+.pay-title::after{ content:""; display:block; width:180px; height:6px; margin:10px auto 0; border-radius:999px; background:linear-gradient(90deg,#2563eb,#4f46e5); opacity:.25; }
+.pay-row{ display:grid; grid-template-columns: 1.2fr 1fr; gap:16px; align-items:center; }
+.pay-left{ display:flex; align-items:center; justify-content:center; background: transparent; }
+.pay-hero{ width:100%; height:auto; display:block; border-radius:12px; }
+.pay-hero-svg{ width:100%; height:auto; display:block; border-radius:12px; }
+/* Vertical accordion style */
+.steps{ display:grid; grid-template-columns: 1fr; gap:10px; align-items:stretch; }
+.step{ position:relative; background: rgba(15,23,42,0.06); border:1px solid rgba(2,6,23,0.10); border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease, background-color .2s ease; box-shadow: 0 6px 16px rgba(2,6,23,0.06); }
+.step:hover{ box-shadow: 0 14px 28px rgba(2,6,23,0.12); border-color: rgba(2,6,23,0.18); transform: translateY(-1px); background: rgba(15,23,42,0.08); }
+.illo{ display:none; }
+.step-head{ font-weight:900; color:#0f172a; padding-right:28px; }
+.step-desc{ color:#334155; line-height:1.7; font-size:14px; }
+/* collapsible behavior */
+.step.collapsible{ cursor:pointer; user-select:none; }
+.step-desc-wrap{ overflow:hidden; }
+.expand-enter-active, .expand-leave-active{ transition: max-height .25s ease, opacity .2s ease; }
+.expand-enter-from, .expand-leave-to{ max-height: 0; opacity: 0; }
+.expand-enter-to, .expand-leave-from{ max-height: 240px; opacity: 1; }
+.step.collapsible .step-head::after{ content: '+'; float:right; font-weight:900; font-size:18px; line-height:1; color:#0f172a; opacity:.8; transition: transform .2s ease, opacity .2s ease; }
+.step.collapsible.open .step-head::after{ content: '−'; opacity:1; }
+.pay-cta{ display:flex; justify-content:center; margin-top:12px; }
+.btn.upgrade{ background:linear-gradient(90deg,#f97316,#fb923c); color:#fff; border:1px solid #fb923c; padding:12px 18px; border-radius:999px; text-decoration:none; font-weight:900; box-shadow: 0 12px 22px rgba(249,115,22,.25); }
+.btn.upgrade:hover{ filter:brightness(.97); }
+@media (max-width: 900px){
+  .pay-row{ grid-template-columns: 1fr; }
+  .steps{ grid-template-columns: 1fr; }
+  .illo{ height:96px; }
+  .illo svg{ width:96px; height:96px; }
+  .steps .step + .step::before{ display:none; }
+}
 .home-head .chips{ display:flex; gap:8px; flex-wrap:wrap; }
 .home-head .search-sort{ margin-left:auto; display:flex; gap:8px; align-items:center; }
 .see-all-btn{ background:white; color:#2563eb; border:1px solid #2563eb; padding:8px 12px; border-radius:999px; font-weight:700; cursor:pointer; }

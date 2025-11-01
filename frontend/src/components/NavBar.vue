@@ -25,6 +25,7 @@
               <router-link to="/admin/branding">Branding</router-link>
               <router-link to="/admin/users">Users</router-link>
               <router-link to="/admin/categories">Categories</router-link>
+              <router-link to="/admin/readings">Readings</router-link>
               <router-link to="/admin/questions">Questions</router-link>
               <router-link to="/admin/essays">Essays Grading</router-link>
               <router-link to="/admin/analytics">Analytics</router-link>
@@ -35,6 +36,7 @@
             </template>
             <template v-else>
               <router-link to="/admin/categories">Categories</router-link>
+              <router-link to="/admin/readings">Readings</router-link>
               <router-link to="/admin/questions">Questions</router-link>
               <router-link to="/admin/essays">Essays Grading</router-link>
               <router-link to="/admin/zoom">Zoom Discussions</router-link>
@@ -66,6 +68,7 @@
               <router-link to="/admin/branding" @click="closeMobile">Branding</router-link>
               <router-link to="/admin/users" @click="closeMobile">Users</router-link>
               <router-link to="/admin/categories" @click="closeMobile">Categories</router-link>
+              <router-link to="/admin/readings" @click="closeMobile">Readings</router-link>
               <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
               <router-link to="/admin/essays" @click="closeMobile">Essays Grading</router-link>
               <router-link to="/admin/analytics" @click="closeMobile">Analytics</router-link>
@@ -76,6 +79,7 @@
             </template>
             <template v-else>
               <router-link to="/admin/categories" @click="closeMobile">Categories</router-link>
+              <router-link to="/admin/readings" @click="closeMobile">Readings</router-link>
               <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
               <router-link to="/admin/essays" @click="closeMobile">Essays Grading</router-link>
               <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>

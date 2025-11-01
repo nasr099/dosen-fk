@@ -15,6 +15,7 @@ from app.db.models import (
     ExamSession as ExamSessionModel,
     ExamAnswer as ExamAnswerModel,
     EssayGrade as EssayGradeModel,
+    Reading as ReadingModel,
 )
 from app.schemas.set import (
     QuestionSet as QuestionSetSchema,
@@ -153,7 +154,9 @@ def download_import_template():
         'option_c_text','option_c_img',
         'option_d_text','option_d_img',
         'option_e_text','option_e_img',
-        'correct_answer','explanation'
+        'correct_answer','explanation',
+        # Optional reading linkage
+        'reading_id','reading_title','reading_content',
     ]
     ws.append(headers)
     # Example rows
@@ -270,6 +273,7 @@ def update_set_with_questions(
             question_set_id=set_id,
             question_text=q.question_text,
             question_type=getattr(q, 'question_type', 'mcq') or 'mcq',
+            reading_id=getattr(q, 'reading_id', None),
             option_a=q.option_a,
             option_b=q.option_b,
             option_c=q.option_c,
@@ -480,11 +484,32 @@ def import_questions_from_xlsx(
             # essay: blank correct
             correct_answer = ''
 
+        # Resolve reading
+        reading_id_val = None
+        rid_raw = get(row, 'reading_id')
+        rtitle = get(row, 'reading_title')
+        rcontent = get(row, 'reading_content')
+        try:
+            if rid_raw:
+                reading_id_val = int(float(rid_raw))
+        except Exception:
+            reading_id_val = None
+        if not reading_id_val and (rtitle and rcontent):
+            # find or create by exact title
+            rd = db.query(ReadingModel).filter(ReadingModel.title == rtitle).first()
+            if not rd:
+                rd = ReadingModel(title=rtitle, content_html=rcontent, category_id=s.category_id)
+                db.add(rd)
+                db.commit()
+                db.refresh(rd)
+            reading_id_val = rd.id
+
         q = QuestionModel(
             category_id=s.category_id,
             question_set_id=set_id,
             question_text=to_rich(qtext, qimg),
             question_type=qtype,
+            reading_id=reading_id_val,
             option_a=opts['a'], option_b=opts['b'], option_c=opts['c'], option_d=opts['d'], option_e=opts['e'],
             correct_answer=correct_answer,
             explanation=get(row, 'explanation'),
@@ -706,6 +731,7 @@ def create_set_with_questions(
             question_set_id=s.id,
             question_text=q.question_text,
             question_type=getattr(q, 'question_type', 'mcq') or 'mcq',
+            reading_id=getattr(q, 'reading_id', None),
             option_a=q.option_a,
             option_b=q.option_b,
             option_c=q.option_c,

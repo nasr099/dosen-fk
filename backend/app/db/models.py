@@ -91,6 +91,17 @@ class QuestionSet(Base):
     category = relationship("Category", back_populates="question_sets")
     questions = relationship("Question", back_populates="question_set")
 
+class Reading(Base):
+    __tablename__ = "readings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    content_html = Column(Text, nullable=False)
+    # Optional classification for easier filtering
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 class TeamMember(Base):
     __tablename__ = "team_members"
 
@@ -115,6 +126,8 @@ class Question(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     question_set_id = Column(Integer, ForeignKey("question_sets.id"), nullable=True)
     question_text = Column(Text, nullable=False)
+    # Optional link to a shared reading passage
+    reading_id = Column(Integer, ForeignKey("readings.id"), nullable=True, index=True)
     # 'mcq' | 'essay' (default 'mcq')
     question_type = Column(String, default="mcq")
     option_a = Column(Text, nullable=False)
@@ -135,6 +148,8 @@ class Question(Base):
     category = relationship("Category", back_populates="questions")
     question_set = relationship("QuestionSet", back_populates="questions")
     exam_answers = relationship("ExamAnswer", back_populates="question")
+    # reading relationship (no backref needed)
+    # reading = relationship("Reading")
 
 class ExamSession(Base):
     __tablename__ = "exam_sessions"

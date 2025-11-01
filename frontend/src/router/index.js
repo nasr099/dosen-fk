@@ -27,6 +27,7 @@ import AdminBlogList from '../views/admin/AdminBlogList.vue'
 import AdminBlogEdit from '../views/admin/AdminBlogEdit.vue'
 import AdminZoom from '../views/admin/AdminZoom.vue'
 import AdminEssayGrading from '../views/admin/AdminEssayGrading.vue'
+import AdminReadings from '../views/admin/AdminReadings.vue'
 import AdminAnalytics from '../views/admin/AdminAnalytics.vue'
 
 const routes = [
@@ -60,6 +61,7 @@ const routes = [
   { path: '/admin/zoom', component: AdminZoom },
   { path: '/admin/essays', component: AdminEssayGrading },
   { path: '/admin/analytics', component: AdminAnalytics },
+  { path: '/admin/readings', component: AdminReadings },
 ]
 
 const router = createRouter({
@@ -95,6 +97,7 @@ router.beforeEach((to, from, next) => {
         '/admin/essays',
         '/admin/zoom',
         '/admin/blog',
+        '/admin/readings',
       ]
       const ok = allowed.some(p => to.path === p || to.path.startsWith(p + '/'))
       if (!ok){
