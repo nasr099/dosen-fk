@@ -36,10 +36,20 @@ api.interceptors.response.use(
       // Allow callers to handle themselves
       if ((status === 401 || status === 403) && !cfg.skipAuthRedirect) {
         const auth = useAuthStore()
-        // Clear local auth and send user to login, preserving return path
+        // Always clear any invalid token
         if (auth?.logout) auth.logout()
-        const next = encodeURIComponent(window.location.pathname + window.location.search)
-        if (!window.location.pathname.startsWith('/login')) {
+
+        // Only force redirect on protected pages; allow public pages to continue
+        const path = window.location.pathname || '/'
+        const protectedRoutes = [
+          /^\/admin(\/|$)/,
+          /^\/exam(\/|$)/,
+          /^\/tryout(\/|$)/,
+          /^\/zoom\/.+/,
+        ]
+        const isProtected = protectedRoutes.some(rx => rx.test(path))
+        if (isProtected && !path.startsWith('/login')) {
+          const next = encodeURIComponent(path + (window.location.search || ''))
           window.location.href = `/login?next=${next}`
         }
       }
