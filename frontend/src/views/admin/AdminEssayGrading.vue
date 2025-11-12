@@ -5,6 +5,11 @@
     <h2 style="margin-top:0">Essay Grading</h2>
     <form class="filters" @submit.prevent="apply">
       <input class="input" v-model="q" placeholder="Search by question text or user email" />
+      <select class="input" v-model="origin">
+        <option value="all">All (Exam + Tryout)</option>
+        <option value="tryout">Tryout only</option>
+        <option value="exam">Non-Tryout (Exam) only</option>
+      </select>
       <select class="input" v-model.number="setId">
         <option :value="0">All Sets</option>
         <option v-for="s in sets" :key="s.id" :value="s.id">{{ s.title }}</option>
@@ -99,6 +104,7 @@ import api from '../../api/client'
 const rows = ref([])
 const status = ref('pending')
 const q = ref('')
+const origin = ref('all') // all | tryout | exam
 const setId = ref(0)
 const sets = ref([])
 const show = ref(false)
@@ -120,6 +126,8 @@ function fmt(s){ try{ return new Date(s).toLocaleString() } catch { return s } }
 async function load(){
   const params = { status: status.value, q: q.value, page: page.value, page_size: pageSize.value }
   if (setId.value) params.set_id = setId.value
+  if (origin.value === 'tryout') params.is_tryout = 1
+  if (origin.value === 'exam') params.is_tryout = 0
   const { data } = await api.get('/essays', { params })
   // data: { total, items }
   total.value = data.total
@@ -148,7 +156,8 @@ function close(){ show.value = false }
 async function save(){
   if (!current.value) return
   const payload = { score: Number(form.value.score), status: derivedStatus.value, notes: form.value.notes }
-  await api.put(`/essays/${current.value.answer_id}`, payload)
+  const path = current.value.is_tryout ? `/essays/tryout/${current.value.answer_id}` : `/essays/${current.value.answer_id}`
+  await api.put(path, payload)
   show.value = false
   await load()
 }

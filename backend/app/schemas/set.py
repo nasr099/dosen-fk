@@ -11,6 +11,9 @@ class QuestionSetBase(BaseModel):
     is_active: bool = True
     # free | paid
     access_level: str = "free"
+    # availability flags
+    allow_in_exam: bool = True
+    allow_in_tryout: bool = False
 
 class QuestionSetCreate(QuestionSetBase):
     pass
@@ -21,6 +24,8 @@ class QuestionSetUpdate(BaseModel):
     time_limit_minutes: Optional[int] = None
     is_active: Optional[bool] = None
     access_level: Optional[str] = None
+    allow_in_exam: Optional[bool] = None
+    allow_in_tryout: Optional[bool] = None
 
 class QuestionSet(QuestionSetBase):
     id: int

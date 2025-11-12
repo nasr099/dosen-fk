@@ -65,7 +65,8 @@ class EssayGradePayload(BaseModel):
 
 class EssayGradePublic(BaseModel):
     id: int
-    exam_answer_id: int
+    exam_answer_id: Optional[int] = None
+    tryout_answer_id: Optional[int] = None
     score: int
     status: str
     notes: Optional[str] = None
@@ -87,6 +88,7 @@ class EssayAnswerItem(BaseModel):
     user_answer: Optional[str] = None
     completed_at: Optional[datetime] = None
     grade: Optional[EssayGradePublic] = None
+    is_tryout: Optional[bool] = False
 
 class EssayListResponse(BaseModel):
     total: int

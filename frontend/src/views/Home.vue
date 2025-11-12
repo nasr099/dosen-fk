@@ -31,13 +31,15 @@
             class="step collapsible"
             :class="{ open: isOpen(1) }"
             @click="toggleStep(1)"
-            @mouseenter="hoverIdx=1" @mouseleave="hoverIdx=null"
-            @focus="hoverIdx=1" @blur="hoverIdx=null"
-            role="button" tabindex="0"
+            role="button"
+            tabindex="0"
+            @keydown.enter.prevent="toggleStep(1)" @keydown.space.prevent="toggleStep(1)"
           >
-            <div class="step-head">1. Hubungi Admin via WhatsApp</div>
+            <div class="step-toggle header-btn" :aria-expanded="isOpen(1)">
+              <div class="step-head">1. Hubungi Admin via WhatsApp</div>
+            </div>
             <transition name="expand">
-              <div class="step-desc-wrap" v-show="isOpen(1)">
+              <div class="step-desc-wrap" v-if="isOpen(1)">
                 <div class="step-desc">Klik tombol di bawah dan sampaikan paket yang Anda inginkan.</div>
               </div>
             </transition>
@@ -46,13 +48,15 @@
             class="step collapsible"
             :class="{ open: isOpen(2) }"
             @click="toggleStep(2)"
-            @mouseenter="hoverIdx=2" @mouseleave="hoverIdx=null"
-            @focus="hoverIdx=2" @blur="hoverIdx=null"
-            role="button" tabindex="0"
+            role="button"
+            tabindex="0"
+            @keydown.enter.prevent="toggleStep(2)" @keydown.space.prevent="toggleStep(2)"
           >
-            <div class="step-head">2. Lakukan Pembayaran</div>
+            <div class="step-toggle header-btn" :aria-expanded="isOpen(2)">
+              <div class="step-head">2. Lakukan Pembayaran</div>
+            </div>
             <transition name="expand">
-              <div class="step-desc-wrap" v-show="isOpen(2)">
+              <div class="step-desc-wrap" v-if="isOpen(2)">
                 <div class="step-desc">Admin akan mengirimkan link pembayaran Resmi. Selesaikan pembayaran Anda melalui link tersebut.</div>
               </div>
             </transition>
@@ -61,13 +65,15 @@
             class="step collapsible"
             :class="{ open: isOpen(3) }"
             @click="toggleStep(3)"
-            @mouseenter="hoverIdx=3" @mouseleave="hoverIdx=null"
-            @focus="hoverIdx=3" @blur="hoverIdx=null"
-            role="button" tabindex="0"
+            role="button"
+            tabindex="0"
+            @keydown.enter.prevent="toggleStep(3)" @keydown.space.prevent="toggleStep(3)"
           >
-            <div class="step-head">3. Aktivasi Akun</div>
+            <div class="step-toggle header-btn" :aria-expanded="isOpen(3)">
+              <div class="step-head">3. Aktivasi Akun</div>
+            </div>
             <transition name="expand">
-              <div class="step-desc-wrap" v-show="isOpen(3)">
+              <div class="step-desc-wrap" v-if="isOpen(3)">
                 <div class="step-desc">Admin mengkonfirmasi pembayaran Anda. Akun Anda langsung diaktifkan! Akses konten premium sekarang.</div>
               </div>
             </transition>
@@ -79,6 +85,40 @@
       </div>
     </div>
   </div>
+
+  <!-- Featured Tryouts (latest 3) -->
+  <section class="card featured-tryouts" v-if="tryoutsLatest.length">
+    <div class="ft-head">
+      <h2 class="ft-title-lg" style="margin:0;">Latest Tryouts</h2>
+      <router-link to="/tryouts"><button class="see-all-btn">See all</button></router-link>
+    </div>
+    <div class="ft-grid">
+      <div class="ft-card" v-for="t in tryoutsLatest" :key="t.id">
+        <div class="ft-top">
+          <span class="iconbubble">🩺</span>
+          <span
+            class="cat-badge"
+            v-if="t.category"
+            :style="{
+              color: catColor(t.category),
+              background: 'transparent',
+              borderColor: catColor(t.category)
+            }"
+          >{{ t.category }}</span>
+        </div>
+        <div class="ft-title" :title="t.title">{{ t.title }}</div>
+        <div class="ft-meta">
+          <span>{{ (t.sets_count||0) }} sets</span>
+          <span class="dot">•</span>
+          <span>{{ (t.duration_minutes||0) }} mins</span>
+        </div>
+        <div class="ft-desc line" v-if="descPreview(t)">{{ descPreview(t) }}</div>
+        <div class="ft-actions">
+          <router-link :to="`/tryout/${t.id}`"><button class="cta">Kerjakan Sekarang</button></router-link>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- Head Categories (cards) -->
   <section class="card head-cards" v-if="headCategories.length">
@@ -246,12 +286,19 @@ import api from '../api/client'
 import { buildWaLink } from '../config/whatsapp'
 
 const whatsLink = buildWaLink('Halo Admin, saya ingin upgrade akun premium.')
+// Featured tryouts (latest 3)
+const tryoutsLatest = ref([])
 const premiumImg = ref('https://medexam-assets-prod.sgp1.cdn.digitaloceanspaces.com/uploads/Gemini_Generated_Image_p2452ep2452ep245.png')
-// multiple-open support
-const openSteps = ref({ 1:false, 2:false, 3:false })
-const hoverIdx = ref(null)
-function toggleStep(i){ openSteps.value[i] = !openSteps.value[i] }
-function isOpen(i){ return !!openSteps.value[i] || hoverIdx.value === i }
+// multi-open accordion; explicit refs per step
+const open1 = ref(false)
+const open2 = ref(false)
+const open3 = ref(false)
+function toggleStep(i){
+  if (i===1) open1.value = !open1.value
+  else if (i===2) open2.value = !open2.value
+  else if (i===3) open3.value = !open3.value
+}
+function isOpen(i){ return i===1 ? open1.value : i===2 ? open2.value : open3.value }
 const categories = ref([])
 const headCategories = computed(() => categories.value.filter(c => !c.parent_id))
 const headHero = computed(() => {
@@ -318,6 +365,12 @@ const faqs = ref([
 onMounted(async () => {
   const { data: cats } = await api.get('/categories/')
   categories.value = cats
+  // fetch latest active tryouts (non-paginated list includes sets_count & duration_minutes)
+  try {
+    const { data: ts } = await api.get('/tryouts/', { params: { status: 'active' } })
+    const sorted = [...(Array.isArray(ts) ? ts : [])].sort((a,b)=> String(b.created_at||'').localeCompare(String(a.created_at||'')))
+    tryoutsLatest.value = sorted.slice(0,3)
+  } catch {}
   // load zoom discussions
   try{
     const { data: zoom } = await api.get('/zoom-discussions/')
@@ -330,14 +383,12 @@ onMounted(async () => {
   // load branding
   try { branding.value = JSON.parse(localStorage.getItem('category_branding')||'{}') } catch { branding.value = {} }
   // Read branding illustration (same key used on Auth page)
-  // for each category, fetch sets and count questions per set
+  // For each category, fetch exam-available set summaries once (faster) and use 'count'
   await Promise.all(cats.map(async (c) => {
-    const { data: sets } = await api.get('/sets/', { params: { category_id: c.id } })
-    setsByCategory.value[c.id] = sets
-    await Promise.all(sets.map(async (s) => {
-      const { data: qs } = await api.get('/questions/', { params: { question_set_id: s.id } })
-      questionCount.value[s.id] = qs.length
-    }))
+    const { data: sums } = await api.get('/sets/summary', { params: { category_id: c.id, allow_in_exam: 1 } })
+    const arr = Array.isArray(sums) ? sums : []
+    setsByCategory.value[c.id] = arr
+    for (const s of arr){ questionCount.value[s.id] = Number(s.count || 0) }
   }))
   rebuildGrid()
 })
@@ -489,6 +540,13 @@ function badgeBg(name){
   return bandTextColor(name) === '#ffffff' ? 'rgba(255,255,255,0.24)' : 'rgba(15,23,42,0.12)'
 }
 
+// For category badge on featured tryouts: use neutral slate for 'Uncategorized'
+function catColor(name){
+  const s = String(name || '').trim().toLowerCase()
+  if (s === 'uncategorized' || s === 'uncategorised') return '#94a3b8' // slate-400
+  return bandColor(name)
+}
+
 function toggleFaq(i){
   faqs.value = faqs.value.map((f, idx) => ({ ...f, open: idx === i ? !f.open : false }))
   nextTick(() => measureFaqHeights())
@@ -534,6 +592,51 @@ onMounted(() => {
   })
 })
 onUnmounted(() => { window.removeEventListener('resize', updatePerPage); window.removeEventListener('resize', updateZoomPerPage); stopAuto() })
+
+// helper: shorten and sanitize description for featured tryout card
+function shorten(html, maxLen = 140){
+  const div = document.createElement('div')
+  div.innerHTML = String(html||'')
+  ;[...div.querySelectorAll('script,style')].forEach(n=>n.remove())
+  const text = div.textContent || div.innerText || ''
+  const s = text.trim().replace(/\s+/g,' ')
+  return s.length > maxLen ? s.slice(0,maxLen) + '…' : s
+}
+
+// render a short rich preview with a fade (keep only basic tags)
+function renderPreview(html){
+  const ALLOWED_TAGS = new Set(['P','B','I','U','S','STRONG','EM','UL','OL','LI','H1','H2','H3','H4','BLOCKQUOTE','A','IMG','CODE','PRE','SUB','SUP','HR','BR','DIV','SPAN'])
+  const ALLOWED_ATTR = new Set(['href','src','alt','target','rel','style'])
+  const div = document.createElement('div')
+  div.innerHTML = String(html||'')
+  ;[...div.querySelectorAll('script,style')].forEach(n=>n.remove())
+  ;(function clean(node){
+    ;[...node.children].forEach(ch => {
+      if (!ALLOWED_TAGS.has(ch.tagName)) { ch.replaceWith(...ch.childNodes); return }
+      ;[...ch.attributes].forEach(attr => { if (!ALLOWED_ATTR.has(attr.name) || attr.name.startsWith('on')) ch.removeAttribute(attr.name) })
+      clean(ch)
+    })
+  })(div)
+  const text = div.textContent || ''
+  if (text.length > 260){
+    return `<div class="fade-wrap">${div.innerHTML}</div>`
+  }
+  return div.innerHTML
+}
+
+// compute a one/two-line plain preview, avoid repeating title
+function descPreview(t){
+  try{
+    const title = String(t?.title || '').trim()
+    const raw = String(t?.description || '').trim()
+    if (!raw) return ''
+    const text = shorten(raw, 160)
+    if (!text) return ''
+    if (text.toLowerCase() === title.toLowerCase()) return ''
+    if (text.length < 3) return ''
+    return text
+  } catch { return '' }
+}
 </script>
 
 <style scoped>
@@ -642,12 +745,15 @@ onUnmounted(() => { window.removeEventListener('resize', updatePerPage); window.
 .step-desc{ color:#334155; line-height:1.7; font-size:14px; }
 /* collapsible behavior */
 .step.collapsible{ cursor:pointer; user-select:none; }
+.step-toggle{ display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; background:transparent; border:0; padding:0; margin:0; text-align:left; cursor:pointer; }
+.step-toggle:focus{ outline:2px solid #93c5fd; outline-offset:2px; border-radius:8px; }
 .step-desc-wrap{ overflow:hidden; }
 .expand-enter-active, .expand-leave-active{ transition: max-height .25s ease, opacity .2s ease; }
 .expand-enter-from, .expand-leave-to{ max-height: 0; opacity: 0; }
 .expand-enter-to, .expand-leave-from{ max-height: 240px; opacity: 1; }
-.step.collapsible .step-head::after{ content: '+'; float:right; font-weight:900; font-size:18px; line-height:1; color:#0f172a; opacity:.8; transition: transform .2s ease, opacity .2s ease; }
-.step.collapsible.open .step-head::after{ content: '−'; opacity:1; }
+/* right-edge arrow indicator at card edge */
+.step.collapsible::after{ content: '▾'; position:absolute; right: 12px; top: 20px; transform: translateY(-50%) rotate(0deg); font-size:16px; color:#0f172a; opacity:.7; transition: transform .2s ease, opacity .2s ease; pointer-events:none; }
+.step.collapsible.open::after{ transform: translateY(-50%) rotate(180deg); opacity:1; }
 .pay-cta{ display:flex; justify-content:center; margin-top:12px; }
 .btn.upgrade{ background:linear-gradient(90deg,#f97316,#fb923c); color:#fff; border:1px solid #fb923c; padding:12px 18px; border-radius:999px; text-decoration:none; font-weight:900; box-shadow: 0 12px 22px rgba(249,115,22,.25); }
 .btn.upgrade:hover{ filter:brightness(.97); }
@@ -665,6 +771,33 @@ onUnmounted(() => { window.removeEventListener('resize', updatePerPage); window.
 .see-all-btn.orange{ background:#f97316; border-color:#f97316; color:white; }
 .see-all-btn.orange:hover{ background:#ea580c; border-color:#ea580c; }
 .see-all-wrap{ display:flex; justify-content:center; margin-top:10px; }
+/* Featured Tryouts */
+.featured-tryouts{ margin: 14px 0; background:linear-gradient(180deg,#f8fbff,#ffffff); border:1px solid #e5efff; border-radius:16px; padding:14px; box-shadow: 0 10px 28px rgba(37,99,235,0.06); }
+.ft-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 4px; }
+.ft-title-lg{ font-size:24px; line-height:1.25; font-weight:900; letter-spacing:.2px; }
+.ft-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-top:12px; }
+@media (max-width: 900px){ .ft-grid{ grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 640px){ .ft-grid{ grid-template-columns: 1fr; } }
+.ft-card{ background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px; box-shadow:0 6px 18px rgba(2,6,23,0.06); transition: box-shadow .2s ease, transform .2s ease; }
+.ft-card:hover{ box-shadow:0 16px 32px rgba(2,6,23,0.12); transform: translateY(-2px); }
+.ft-top{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; margin:-14px -14px 10px -14px; background:#fff7ed; border-bottom:1px solid #fed7aa; border-top-left-radius:14px; border-top-right-radius:14px; }
+.iconbubble{ width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; background:linear-gradient(135deg,#dbeafe,#bfdbfe); border:1px solid #bfdbfe; box-shadow: inset 0 1px 0 #ffffff; }
+.cat-badge{ font-size:12px; padding:4px 10px; border-radius:999px; font-weight:800; background:#f1f5f9; color:#0f172a; border:1px solid #e2e8f0; }
+.ft-title{ font-weight:900; color:#0f172a; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:.2px; }
+.ft-meta{ color:#475569; font-size:13px; display:flex; align-items:center; gap:10px; }
+.ft-meta .badge{ background:#eef2ff; border:1px solid #c7d2fe; padding:3px 8px; border-radius:999px; font-weight:800; font-size:12px; color:#3730a3; }
+.ft-meta .dot{ opacity:.5; }
+.ft-desc{ color:#64748b; font-size:14px; line-height:1.7; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.ft-desc.line{ color:#475569; font-size:14px; line-height:1.6; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ft-actions{ margin-top:auto; display:flex; justify-content:flex-end; }
+.ft-actions.dual{ gap:8px; justify-content:space-between; }
+.ft-actions .cta{ background:linear-gradient(90deg,#f97316,#fb923c); color:#fff; border:1px solid #fb923c; padding:9px 14px; border-radius:12px; font-weight:900; cursor:pointer; box-shadow: 0 12px 22px rgba(249,115,22,.25); }
+.ft-actions .cta.ghost{ background:#fff; color:#f97316; border-color:#fb923c; box-shadow:none; }
+.ft-actions .cta:hover{ filter:brightness(.97); }
+/* rich preview fade */
+.ft-desc.rich{ position:relative; max-height: 96px; overflow:hidden; }
+.ft-desc.rich .fade-wrap{ position:relative; display:block; }
+.ft-desc.rich::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:40px; background: linear-gradient(180deg, rgba(255,255,255,0), #ffffff); }
 @media (max-width: 640px){
   .home-head h2{ width:100%; }
   .home-head .search-sort{ order:3; width:100%; margin-left:0; }

@@ -17,7 +17,22 @@
           <label>Time (minutes)</label>
           <input v-model.number="form.time_limit_minutes" type="number" min="1" class="input" />
         </div>
-        <div class="row"><label><input type="checkbox" v-model="form.is_active" /> Active</label></div>
+        <div class="row">
+          <label>Publish</label>
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" v-model="form.is_active" />
+            <span>Published</span>
+          </label>
+        </div>
+        <div class="row">
+          <label>Availability</label>
+          <select v-model="availability" class="input" disabled>
+            <option value="both">Exam and Tryout</option>
+            <option value="exam">Exam only</option>
+            <option value="tryout">Tryout only</option>
+          </select>
+          <small class="muted">Availability is fixed when the set is created.</small>
+        </div>
         <div class="row">
           <label>Access Level</label>
           <select v-model="form.access_level" class="input">
@@ -172,7 +187,8 @@ const setId = Number(route.params.setId)
 const loading = ref(true)
 const setData = ref({})
 const categories = ref([])
-const form = ref({ title:'', description:'', time_limit_minutes:60, is_active:true, questions:[] })
+const form = ref({ title:'', description:'', time_limit_minutes:60, is_active:true, allow_in_exam:true, allow_in_tryout:false, questions:[] })
+const availability = ref('both') // both | exam | tryout
 const readings = ref([])
 const xlsxFile = ref(null)
 const importing = ref(false)
@@ -289,6 +305,8 @@ onMounted(async () => {
     description: setInfo.description || '',
     time_limit_minutes: setInfo.time_limit_minutes || 60,
     is_active: setInfo.is_active !== false,
+    allow_in_exam: setInfo.allow_in_exam !== false,
+    allow_in_tryout: !!setInfo.allow_in_tryout,
     access_level: setInfo.access_level || 'free',
     questions: qs.map(q => {
       const pr = parseRich(q.question_text)
@@ -338,6 +356,10 @@ onMounted(async () => {
       }
     })
   }
+  // initialize availability from flags
+  if (form.value.allow_in_exam && form.value.allow_in_tryout) availability.value = 'both'
+  else if (form.value.allow_in_exam) availability.value = 'exam'
+  else availability.value = 'tryout'
   loading.value = false
 })
 

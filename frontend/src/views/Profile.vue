@@ -109,12 +109,20 @@
         <div class="top3">
           <h3>Top 3 Best Scores <span v-if="chartSet">(for {{ chartSet }})</span></h3>
           <ul class="top3-list">
-            <li v-for="t in top3" :key="t.id">
-              <div class="t-main">
-                <span class="t-title">{{ t.set_title || '-' }}</span>
-                <span class="t-score badge">{{ Math.round(t.score_percentage||0) }}/100</span>
+            <li v-for="(t, i) in top3" :key="t.id" class="top3-item">
+              <div class="t-row">
+                <span :class="['t-rank', { gold: i===0, silver: i===1, bronze: i===2 }]">{{ i+1 }}</span>
+                <div class="t-info">
+                  <div class="t-head">
+                    <span class="t-title">{{ t.set_title || '-' }}</span>
+                    <span class="t-score">{{ Math.round(t.score_percentage||0) }}/100</span>
+                  </div>
+                  <div class="t-sub">{{ formatDate(t.completed_at || t.started_at) }}</div>
+                  <div class="t-meter">
+                    <div class="t-fill" :style="{ width: Math.min(100, Math.max(0, Math.round(t.score_percentage||0))) + '%' }"></div>
+                  </div>
+                </div>
               </div>
-              <div class="t-sub">{{ formatDate(t.completed_at || t.started_at) }}</div>
             </li>
           </ul>
         </div>
@@ -182,6 +190,53 @@
             <button class="btn small secondary" :disabled="page<=1" @click="page=page-1">Prev</button>
             <span>Page {{ page }} / {{ pageCount }}</span>
             <button class="btn small" :disabled="page>=pageCount" @click="page=page+1">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tryout History -->
+      <div class="card" style="margin-top: 16px;">
+        <div class="history-head">
+          <h2>Tryout History</h2>
+        </div>
+        <div v-if="tryoutHistory.length === 0">No tryout sessions yet.</div>
+        <div v-else class="table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th class="completed-col">Completed</th>
+                <th>Tryout</th>
+                <th>Score</th>
+                <th>Correct</th>
+                <th class="action-col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in paginatedTryout" :key="t.id">
+                <td class="completed-col">{{ formatDate(t.completed_at || t.started_at) }}</td>
+                <td>{{ t.tryout_title || '-' }}</td>
+                <td>{{ Math.round(t.score_percentage || 0) }}/100</td>
+                <td>{{ t.correct_answers }}/{{ t.total_questions }}</td>
+                <td class="desktop-action" style="text-align: right;">
+                  <router-link :to="{ path: `/tryout/result/${t.id}` }"><button class="btn small">View Result</button></router-link>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="history-pager">
+          <div class="pager-left">
+            <label>Rows</label>
+            <select v-model.number="tryPageSize">
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
+          <div class="pager-right">
+            <button class="btn small secondary" :disabled="tryPage<=1" @click="tryPage=tryPage-1">Prev</button>
+            <span>Page {{ tryPage }} / {{ tryPageCount }}</span>
+            <button class="btn small" :disabled="tryPage>=tryPageCount" @click="tryPage=tryPage+1">Next</button>
           </div>
         </div>
       </div>
@@ -319,6 +374,17 @@ const paginatedHistory = computed(() => {
   return filteredHistory.value.slice(start, start + pageSize.value)
 })
 
+// Tryout history pagination
+const tryoutHistory = ref([])
+const tryPage = ref(1)
+const tryPageSize = ref(10)
+const tryPageCount = computed(() => Math.max(1, Math.ceil(tryoutHistory.value.length / tryPageSize.value)))
+const paginatedTryout = computed(() => {
+  const p = Math.min(tryPage.value, tryPageCount.value)
+  const start = (p - 1) * tryPageSize.value
+  return tryoutHistory.value.slice(start, start + tryPageSize.value)
+})
+
 const applyFilters = () => {
   let tempHistory = [...originalHistory.value];
 
@@ -391,6 +457,17 @@ onMounted(async () => {
   await nextTick();
   renderProfileChart()
 });
+
+onMounted(async () => {
+  // Load tryout history
+  try {
+    const { data } = await api.get('/tryouts/sessions/history')
+    tryoutHistory.value = Array.isArray(data) ? data : []
+    tryPage.value = 1
+  } catch (e) {
+    tryoutHistory.value = []
+  }
+})
 
 // (moved above to be available before watcher)
 
@@ -492,13 +569,22 @@ function formatDate(dt) {
 .ana-legend .label{ color:#64748b; font-size:12px; }
 .ana-legend .value{ font-weight:800; color:#0f172a; font-size:14px; }
 .top3{ margin-top:12px; }
-.top3 h3{ margin:8px 0; font-size:16px; }
-.top3-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
-.top3-list li{ border:1px solid #e2e8f0; border-radius:10px; padding:8px 10px; background:#fff; }
-.top3-list .t-main{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
-.top3-list .t-title{ font-weight:700; color:#0f172a; }
-.top3-list .t-score{ background:#e0f2fe; color:#075985; border-radius:999px; padding:2px 8px; font-size:12px; font-weight:800; }
-.top3-list .t-sub{ color:#64748b; font-size:12px; margin-top:4px; }
+.top3 h3{ margin:8px 0 12px; font-size:16px; }
+.top3-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+.top3-item{ border:1px solid #e2e8f0; border-radius:14px; padding:10px 12px; background:#ffffff; transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease; }
+.top3-item:hover{ box-shadow: 0 10px 20px rgba(2,6,23,0.06); border-color:#cbd5e1; transform: translateY(-1px); }
+.t-row{ display:flex; align-items:center; gap:10px; }
+.t-rank{ flex: 0 0 36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:999px; font-weight:900; color:#0f172a; background:#eef2ff; border:1px solid #c7d2fe; }
+.t-rank.gold{ background:linear-gradient(135deg,#fde68a,#fbbf24); border-color:#f59e0b; }
+.t-rank.silver{ background:linear-gradient(135deg,#e5e7eb,#cbd5e1); border-color:#94a3b8; }
+.t-rank.bronze{ background:linear-gradient(135deg,#fed7aa,#fdba74); border-color:#fb923c; }
+.t-info{ flex:1; min-width:0; }
+.t-head{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+.t-title{ font-weight:800; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.t-score{ color:#2563eb; font-weight:900; background:#e0f2fe; border:1px solid #bae6fd; padding:2px 10px; border-radius:999px; font-size:12px; }
+.t-sub{ color:#64748b; font-size:12px; margin:4px 0 6px; }
+.t-meter{ width:100%; height:8px; background:#f1f5f9; border-radius:999px; overflow:hidden; border:1px solid #e2e8f0; }
+.t-fill{ height:100%; background:linear-gradient(90deg,#22c55e,#16a34a); }
 
 /* Password card beautification */
 .pw-card{ margin:16px 0; padding:20px; background:linear-gradient(180deg,#ffffff, #fbfdff); border:1px solid #e2e8f0; border-radius:14px; box-shadow: 0 6px 18px rgba(2,6,23,0.04); }

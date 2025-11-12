@@ -250,6 +250,8 @@ def get_result(session_id: int, db: Session = Depends(get_db), current_user=Depe
     qids = [a.question_id for a in answers_db]
     questions = { q.id: q for q in db.query(QuestionModel).filter(QuestionModel.id.in_(qids)).all() }
     answers_detail = []
+    # Paid users or staff (admin/teacher) can view solutions
+    user_is_paid = (getattr(current_user, 'plan', 'free') == 'paid') or getattr(current_user, 'is_admin', False) or getattr(current_user, 'is_teacher', False)
     objective_total = 0
     essay_answer_ids = []
     for a in answers_db:
@@ -263,18 +265,22 @@ def get_result(session_id: int, db: Session = Depends(get_db), current_user=Depe
             "question_id": q.id,
             "question_text": q.question_text,
             "selected_answer": a.selected_answer,
-            "correct_answer": q.correct_answer,
             "is_correct": a.is_correct or False,
-            "explanation": q.explanation,
             "selected_detail": _option_value(q, a.selected_answer) if qtype == 'mcq' else (a.selected_answer or ''),
-            "correct_detail": _option_value(q, q.correct_answer) if qtype == 'mcq' else '',
+            # correct_* fields added below only if user_is_paid
             "question_type": qtype,
         }
+        if user_is_paid:
+            payload["correct_answer"] = q.correct_answer
+            payload["explanation"] = q.explanation
+            if qtype == 'mcq':
+                payload["correct_detail"] = _option_value(q, q.correct_answer)
         if qtype == 'multi':
             sel_letters = [x for x in (a.selected_answer or '').split(',') if x.strip()]
-            cor_letters = [x for x in (q.correct_answer or '').split(',') if x.strip()]
             payload["selected_multi"] = sel_letters
-            payload["correct_multi"] = cor_letters
+            if user_is_paid:
+                cor_letters = [x for x in (q.correct_answer or '').split(',') if x.strip()]
+                payload["correct_multi"] = cor_letters
         elif qtype == 'essay':
             essay_answer_ids.append(a.id)
         answers_detail.append(payload)

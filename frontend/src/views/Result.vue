@@ -38,9 +38,14 @@
     <h3 class="answers-title">Answers</h3>
     <div v-if="(result.answers||[]).length === 0" class="muted">No answers recorded.</div>
     <div v-for="(a, i) in result.answers" :key="a.question_id || i" class="card answer-card">
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-        <div class="qnum">Q{{ i + 1 }}</div>
-        <div style="font-weight:700;">Question:</div>
+      <div class="answer-head">
+        <div class="left">
+          <div class="qnum">Q{{ i + 1 }}</div>
+          <div class="qtitle">Question:</div>
+        </div>
+        <div class="right" v-if="(a.question_type||'mcq') !== 'essay'">
+          <span class="abadge" :class="answerStatusClass(a)">{{ answerStatusText(a) }}</span>
+        </div>
       </div>
       <div class="qwrap">
         <div v-if="qDetail(a).text" class="qtext" v-html="renderHTML(qDetail(a).text)"></div>
@@ -63,7 +68,7 @@
               <span v-if="selectedLetters(a).length===0" class="muted">-</span>
             </div>
           </div>
-          <div class="col">
+          <div class="col" v-if="isPremium">
             <div><strong>Correct:</strong></div>
             <div class="chips">
               <span v-for="l in correctLetters(a)" :key="'c-'+l" class="chip good">{{ l }}</span>
@@ -81,7 +86,7 @@
               <div v-if="sDetail(a).text" class="text" v-html="renderHTML(sDetail(a).text)"></div>
             </div>
           </div>
-          <div class="col">
+          <div class="col" v-if="isPremium">
             <div><strong>Correct:</strong> <span class="good">{{ a.correct_answer }}</span></div>
             <div v-if="cDetail(a).text || cDetail(a).img" class="ans-detail">
               <img v-if="cDetail(a).img" :src="resolveImg(cDetail(a).img)" alt="Correct answer" />
@@ -91,7 +96,7 @@
         </div>
       </template>
 
-      <div class="explain">
+      <div class="explain" v-if="isPremium && (a.question_type||'mcq') !== 'essay'">
         <div class="explain-label"><strong>Explanation:</strong></div>
         <div v-if="a.explanation" class="explain-box" v-html="renderHTML(a.explanation)"></div>
         <div v-else class="explain-box empty">-</div>
@@ -103,8 +108,8 @@
             <span class="badge" :class="a.essay_grade.status">{{ a.essay_grade.status }}</span>
             <span class="score">{{ a.essay_grade.score }}/100</span>
           </div>
-          <div v-if="a.essay_grade.notes" class="notes-box">{{ a.essay_grade.notes }}</div>
-          <div v-else class="notes-box empty">No notes</div>
+          <div v-if="isPremium && a.essay_grade.notes" class="notes-box">{{ a.essay_grade.notes }}</div>
+          <div v-else-if="isPremium" class="notes-box empty">No notes</div>
         </template>
         <template v-else>
           <div class="notes-box empty">Pending manual review</div>
@@ -117,8 +122,16 @@
 import { onMounted, ref, computed } from 'vue'
 import api from '../api/client'
 import { useRoute } from 'vue-router'
+import { renderMathHTML } from '../utils/math'
+import { useAuthStore } from '../store/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
+const isPremium = computed(() => {
+  // Paid plan OR staff (admin/teacher)
+  const planPaid = String(auth.user?.plan || '').toLowerCase() === 'paid'
+  return planPaid || auth.isAdmin || auth.isTeacher
+})
 const result = ref(null)
 const score100 = computed(() => Math.round(result.value?.score_percentage ?? 0))
 const essayAvg = computed(() => Math.round(result.value?.essay_avg_score ?? 0))
@@ -168,8 +181,26 @@ function renderHTML(html){
       ;[...ch.attributes].forEach(attr => { if (!ALLOWED_ATTR.has(attr.name) || attr.name.startsWith('on')) ch.removeAttribute(attr.name) })
       clean(ch)
     })
+  
+  // --- Per-answer correctness label helpers ---
+  function hasSelection(a){
+    const s1 = String(a?.selected_answer || '').trim()
+    const s2 = String(a?.selected_multi || '').trim()
+    return !!(s1 || s2)
+  }
+  function answerStatusClass(a){
+    if (!(a && (a.question_type||'mcq') !== 'essay')) return 'idle'
+    if (!hasSelection(a)) return 'idle'
+    return a.is_correct ? 'ok' : 'bad'
+  }
+  function answerStatusText(a){
+    if (!(a && (a.question_type||'mcq') !== 'essay')) return ''
+    if (!hasSelection(a)) return 'Unanswered'
+    return a.is_correct ? 'Correct' : 'Not Correct'
+  }
   })(div)
-  return div.innerHTML
+  // After sanitizing, render math using KaTeX for $...$ and $$...$$ within text nodes
+  return renderMathHTML(div.innerHTML)
 }
 
 function resolveImg(src){
@@ -207,6 +238,23 @@ const qDetail = (a) => {
   } catch (e) {
     return { text: String(raw), img: '' }
   }
+}
+
+// --- Per-answer correctness label helpers (non-essay) ---
+function hasSelection(a){
+  const s1 = String(a?.selected_answer || '').trim()
+  const s2 = String(a?.selected_multi || '').trim()
+  return !!(s1 || s2)
+}
+function answerStatusClass(a){
+  if (!(a && (a.question_type||'mcq') !== 'essay')) return 'idle'
+  if (!hasSelection(a)) return 'idle'
+  return a.is_correct ? 'ok' : 'bad'
+}
+function answerStatusText(a){
+  if (!(a && (a.question_type||'mcq') !== 'essay')) return ''
+  if (!hasSelection(a)) return 'Unanswered'
+  return a.is_correct ? 'Correct' : 'Not Correct'
 }
 
 onMounted(async () => {
@@ -252,6 +300,13 @@ onMounted(async () => {
 
 .answers-title{ margin: 18px 0 10px; }
 .answer-card{ margin-top:22px; padding:20px; }
+.answer-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
+.answer-head .left{ display:flex; align-items:center; gap:10px; }
+.answer-head .qtitle{ font-weight:700; }
+.abadge{ display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:800; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; }
+.abadge.ok{ background:#dcfce7; border-color:#bbf7d0; color:#065f46; }
+.abadge.bad{ background:#fee2e2; border-color:#fecaca; color:#991b1b; }
+.abadge.idle{ background:#f1f5f9; color:#475569; }
 .qnum{ background:#111827; color:#fff; border-radius:6px; padding:2px 8px; font-weight:800; font-size:12px; letter-spacing:.5px; }
 .explain{ margin-top:12px; }
 .row{ display:flex; gap:24px; margin-top:8px; }

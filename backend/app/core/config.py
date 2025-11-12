@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     EMAIL_PORT: Optional[int] = None
     EMAIL_USERNAME: Optional[str] = None
     EMAIL_PASSWORD: Optional[str] = None
+
+    # LLM providers
+    OPENAI_API_KEY: Optional[str] = None
     
     # pydantic v2 settings config
     model_config = SettingsConfigDict(env_file=".env", extra='ignore')

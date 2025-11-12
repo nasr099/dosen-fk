@@ -6,47 +6,55 @@
         <div class="brand-name">MedExam Admin</div>
       </div>
       <nav class="nav">
-        <RouterLink to="/admin/branding" class="nav-item" :class="{active: $route.path.startsWith('/admin/branding')}">
+        <RouterLink v-if="isAdmin" to="/admin/branding" class="nav-item" :class="{active: $route.path.startsWith('/admin/branding')}">
           <span class="icon">🎨</span>
           <span>Branding</span>
         </RouterLink>
-        <RouterLink to="/admin/users" class="nav-item" :class="{active: $route.path.startsWith('/admin/users')}">
+        <RouterLink v-if="isAdmin" to="/admin/users" class="nav-item" :class="{active: $route.path.startsWith('/admin/users')}">
           <span class="icon">👥</span>
           <span>Users</span>
         </RouterLink>
-        <RouterLink to="/admin/categories" class="nav-item" :class="{active: $route.path.startsWith('/admin/categories')}">
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/categories" class="nav-item" :class="{active: $route.path.startsWith('/admin/categories')}">
           <span class="icon">🗂️</span>
           <span>Categories</span>
         </RouterLink>
-        <RouterLink to="/admin/questions" class="nav-item" :class="{active: $route.path.startsWith('/admin/questions')}">
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/questions" class="nav-item" :class="{active: $route.path.startsWith('/admin/questions')}">
           <span class="icon">❓</span>
           <span>Questions</span>
         </RouterLink>
-        <RouterLink to="/admin/readings" class="nav-item" :class="{active: $route.path.startsWith('/admin/readings')}">
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/readings" class="nav-item" :class="{active: $route.path.startsWith('/admin/readings')}">
           <span class="icon">📖</span>
           <span>Readings</span>
         </RouterLink>
-        <RouterLink to="/admin/essays" class="nav-item" :class="{active: $route.path.startsWith('/admin/essays')}">
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/tryouts" class="nav-item" :class="{active: $route.path.startsWith('/admin/tryouts')}">
+          <span class="icon">🧪</span>
+          <span>Tryouts</span>
+        </RouterLink>
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/essays" class="nav-item" :class="{active: $route.path.startsWith('/admin/essays')}">
           <span class="icon">📝</span>
           <span>Essays Grading</span>
         </RouterLink>
-        <RouterLink to="/admin/analytics" class="nav-item" :class="{active: $route.path.startsWith('/admin/analytics')}">
+        <RouterLink v-if="isAdmin" to="/admin/analytics" class="nav-item" :class="{active: $route.path.startsWith('/admin/analytics')}">
           <span class="icon">📊</span>
           <span>Analytics</span>
         </RouterLink>
-        <RouterLink to="/admin/promos" class="nav-item" :class="{active: $route.path.startsWith('/admin/promos')}">
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/llm" class="nav-item" :class="{active: $route.path.startsWith('/admin/llm')}">
+          <span class="icon">🤖</span>
+          <span>Questions Generator</span>
+        </RouterLink>
+        <RouterLink v-if="isAdmin" to="/admin/promos" class="nav-item" :class="{active: $route.path.startsWith('/admin/promos')}">
           <span class="icon">🏷️</span>
           <span>Promos</span>
         </RouterLink>
-        <RouterLink to="/admin/blog" class="nav-item" :class="{active: $route.path.startsWith('/admin/blog')}">
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/blog" class="nav-item" :class="{active: $route.path.startsWith('/admin/blog')}">
           <span class="icon">✍️</span>
           <span>Blog</span>
         </RouterLink>
-        <RouterLink to="/admin/zoom" class="nav-item" :class="{active: $route.path.startsWith('/admin/zoom')}">
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/zoom" class="nav-item" :class="{active: $route.path.startsWith('/admin/zoom')}">
           <span class="icon">🎥</span>
           <span>Zoom Discussions</span>
         </RouterLink>
-        <RouterLink to="/admin/team" class="nav-item" :class="{active: $route.path.startsWith('/admin/team')}">
+        <RouterLink v-if="isAdmin" to="/admin/team" class="nav-item" :class="{active: $route.path.startsWith('/admin/team')}">
           <span class="icon">👤</span>
           <span>Team</span>
         </RouterLink>
@@ -74,8 +82,15 @@
 import { ref, onMounted } from 'vue'
 
 const collapsed = ref(false)
+const isAdmin = ref(false)
+const isTeacher = ref(false)
 onMounted(() => {
   try { collapsed.value = localStorage.getItem('admin_sidebar_collapsed') === '1' } catch {}
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    isAdmin.value = !!(user && user.is_admin === true)
+    isTeacher.value = !!(user && user.is_teacher === true)
+  } catch {}
 })
 function toggleSidebar(){
   collapsed.value = !collapsed.value

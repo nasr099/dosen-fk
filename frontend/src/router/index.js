@@ -29,6 +29,13 @@ import AdminZoom from '../views/admin/AdminZoom.vue'
 import AdminEssayGrading from '../views/admin/AdminEssayGrading.vue'
 import AdminReadings from '../views/admin/AdminReadings.vue'
 import AdminAnalytics from '../views/admin/AdminAnalytics.vue'
+import AdminLLM from '../views/admin/AdminLLM.vue'
+// Tryouts
+import AdminTryoutBuilder from '../views/admin/AdminTryoutBuilder.vue'
+import TryoutLobby from '../views/tryout/TryoutLobby.vue'
+import TryoutRunner from '../views/tryout/TryoutRunner.vue'
+import TryoutResult from '../views/tryout/TryoutResult.vue'
+import TryoutsList from '../views/TryoutsList.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -38,6 +45,7 @@ const routes = [
   { path: '/register', component: Register },
   { path: '/profile', component: Profile },
   { path: '/categories', component: CategoryHeads },
+  { path: '/tryouts', component: TryoutsList },
   { path: '/categories/:headId', component: SubCategories, props: true },
   { path: '/categories/:headId/:subId', component: CategoryList, props: true },
   { path: '/exam/:categoryId', name: 'exam', component: Exam, props: true },
@@ -51,6 +59,8 @@ const routes = [
   { path: '/admin/users', component: AdminUsers },
   { path: '/admin/categories', component: AdminCategories },
   { path: '/admin/questions', component: AdminQuestions },
+  // Redirect legacy/expected sets list path to Questions overview which hosts Sets Overview
+  { path: '/admin/sets', redirect: '/admin/questions' },
   { path: '/admin/sets/:setId', component: AdminSetEdit, props: true },
   { path: '/admin/promos', component: AdminPromos },
   { path: '/admin/branding', component: AdminBranding },
@@ -61,7 +71,12 @@ const routes = [
   { path: '/admin/zoom', component: AdminZoom },
   { path: '/admin/essays', component: AdminEssayGrading },
   { path: '/admin/analytics', component: AdminAnalytics },
+  { path: '/admin/llm', component: AdminLLM },
   { path: '/admin/readings', component: AdminReadings },
+  { path: '/admin/tryouts', component: AdminTryoutBuilder },
+  { path: '/tryout/:id', component: TryoutLobby, props: true },
+  { path: '/tryout/run/:sessionId', component: TryoutRunner, props: true },
+  { path: '/tryout/result/:sessionId', component: TryoutResult, props: true },
 ]
 
 const router = createRouter({
@@ -94,10 +109,12 @@ router.beforeEach((to, from, next) => {
         '/admin/categories',
         '/admin/questions',
         '/admin/sets',
+        '/admin/tryouts',
         '/admin/essays',
         '/admin/zoom',
         '/admin/blog',
         '/admin/readings',
+        '/admin/llm',
       ]
       const ok = allowed.some(p => to.path === p || to.path.startsWith(p + '/'))
       if (!ok){

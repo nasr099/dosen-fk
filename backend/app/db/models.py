@@ -24,6 +24,87 @@ class User(Base):
     # Relationships
     exam_sessions = relationship("ExamSession", back_populates="user")
 
+# -------------------- Tryouts --------------------
+class Tryout(Base):
+    __tablename__ = "tryouts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    # Optional high-level category for the tryout (separate from Questions category)
+    category = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    sets = relationship("TryoutSet", back_populates="tryout", order_by="TryoutSet.order_index")
+
+class TryoutMeta(Base):
+    __tablename__ = "tryout_meta"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tryout_id = Column(Integer, ForeignKey("tryouts.id"), unique=True, nullable=False, index=True)
+    # Free-text category separate from Questions Category
+    category = Column(String, nullable=True)
+
+class TryoutCategory(Base):
+    __tablename__ = "tryout_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False, index=True)
+
+class TryoutSet(Base):
+    __tablename__ = "tryout_sets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tryout_id = Column(Integer, ForeignKey("tryouts.id"), nullable=False, index=True)
+    order_index = Column(Integer, nullable=False, default=1)
+    question_set_id = Column(Integer, ForeignKey("question_sets.id"), nullable=False)
+    duration_minutes = Column(Integer, nullable=False, default=60)
+    intermission_text = Column(Text)
+
+    tryout = relationship("Tryout", back_populates="sets")
+
+class TryoutSession(Base):
+    __tablename__ = "tryout_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tryout_id = Column(Integer, ForeignKey("tryouts.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status = Column(String, default="running")  # pending | running | finished | canceled
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    finished_at = Column(DateTime(timezone=True))
+    # Device binding
+    device_id = Column(String, nullable=True, index=True)
+    user_agent = Column(String, nullable=True)
+    started_ip = Column(String, nullable=True)
+
+class TryoutSetSession(Base):
+    __tablename__ = "tryout_set_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tryout_session_id = Column(Integer, ForeignKey("tryout_sessions.id"), nullable=False, index=True)
+    tryout_set_id = Column(Integer, ForeignKey("tryout_sets.id"), nullable=False, index=True)
+    phase = Column(String, default="intermission")  # intermission | running | finished
+    intermission_start_at = Column(DateTime(timezone=True), server_default=func.now())
+    intermission_end_at = Column(DateTime(timezone=True))
+    run_start_at = Column(DateTime(timezone=True))
+    run_end_at = Column(DateTime(timezone=True))
+    answered_count = Column(Integer, default=0)
+    correct_count = Column(Integer, default=0)
+    score_percentage = Column(Float, default=0.0)
+
+class TryoutAnswer(Base):
+    __tablename__ = "tryout_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tryout_set_session_id = Column(Integer, ForeignKey("tryout_set_sessions.id"), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
+    selected_answer = Column(Text)
+    is_correct = Column(Boolean, default=False)
+    answered_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class ZoomDiscussion(Base):
     __tablename__ = "zoom_discussions"
 
@@ -84,6 +165,9 @@ class QuestionSet(Base):
     is_active = Column(Boolean, default=True)
     # free | paid
     access_level = Column(String, default="free")
+    # availability flags
+    allow_in_exam = Column(Boolean, default=True)
+    allow_in_tryout = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -191,7 +275,9 @@ class EssayGrade(Base):
     __tablename__ = "essay_grades"
 
     id = Column(Integer, primary_key=True, index=True)
-    exam_answer_id = Column(Integer, ForeignKey("exam_answers.id"), nullable=False, index=True)
+    # Either exam_answer_id OR tryout_answer_id will be set (one of them non-null)
+    exam_answer_id = Column(Integer, ForeignKey("exam_answers.id"), nullable=True, index=True)
+    tryout_answer_id = Column(Integer, ForeignKey("tryout_answers.id"), nullable=True, index=True)
     # 0-100 scale
     score = Column(Integer, nullable=False)
     status = Column(String, default="approved")  # approved | partial | incorrect

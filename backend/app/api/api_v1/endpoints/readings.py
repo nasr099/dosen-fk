@@ -117,7 +117,6 @@ def import_readings(
 def get_reading(
     reading_id: int,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_staff_user),
 ):
     rd = db.query(ReadingModel).filter(ReadingModel.id == reading_id).first()
     if not rd:

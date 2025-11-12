@@ -9,6 +9,7 @@
       <nav class="links">
         <router-link to="/">Home</router-link>
         <router-link to="/categories">Categories</router-link>
+        <router-link to="/tryouts">Tryouts</router-link>
         <router-link to="/zoom">Zoom Discussion</router-link>
         <router-link to="/blog">Blog</router-link>
         <div class="dropdown" ref="supportMenuRef">
@@ -27,8 +28,10 @@
               <router-link to="/admin/categories">Categories</router-link>
               <router-link to="/admin/readings">Readings</router-link>
               <router-link to="/admin/questions">Questions</router-link>
+              <router-link to="/admin/tryouts">Tryouts</router-link>
               <router-link to="/admin/essays">Essays Grading</router-link>
               <router-link to="/admin/analytics">Analytics</router-link>
+              <router-link to="/admin/llm">Questions Generator</router-link>
               <router-link to="/admin/promos">Promos</router-link>
               <router-link to="/admin/zoom">Zoom Discussions</router-link>
               <router-link to="/admin/team">Team</router-link>
@@ -38,6 +41,8 @@
               <router-link to="/admin/categories">Categories</router-link>
               <router-link to="/admin/readings">Readings</router-link>
               <router-link to="/admin/questions">Questions</router-link>
+              <router-link to="/admin/tryouts">Tryouts</router-link>
+              <router-link to="/admin/llm">Questions Generator</router-link>
               <router-link to="/admin/essays">Essays Grading</router-link>
               <router-link to="/admin/zoom">Zoom Discussions</router-link>
               <router-link to="/admin/blog">Blog</router-link>
@@ -51,6 +56,7 @@
       <div class="actions">
         <router-link v-if="!auth.isAuthenticated" to="/login" class="link-login">Log in</router-link>
         <router-link v-if="!auth.isAuthenticated" to="/register"><button class="btn cta">Get Started</button></router-link>
+        <router-link v-if="resumeSessionId" :to="`/tryout/run/${resumeSessionId}`"><button class="btn resume">Resume Tryout</button></router-link>
         <router-link v-if="auth.isAuthenticated" to="/profile">Profile</router-link>
         <button v-if="auth.isAuthenticated" class="btn secondary" @click="logout">Logout</button>
       </div>
@@ -58,6 +64,7 @@
       <div v-if="showMobile" class="mobile-menu">
         <router-link to="/" @click="closeMobile">Home</router-link>
         <router-link to="/categories" @click="closeMobile">Categories</router-link>
+        <router-link to="/tryouts" @click="closeMobile">Tryouts</router-link>
         <router-link to="/zoom" @click="closeMobile">Zoom Discussion</router-link>
         <router-link to="/blog" @click="closeMobile">Blog</router-link>
         <router-link to="/#faq" @click="closeMobile">FAQ</router-link>
@@ -70,8 +77,10 @@
               <router-link to="/admin/categories" @click="closeMobile">Categories</router-link>
               <router-link to="/admin/readings" @click="closeMobile">Readings</router-link>
               <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
+              <router-link to="/admin/tryouts" @click="closeMobile">Tryouts</router-link>
               <router-link to="/admin/essays" @click="closeMobile">Essays Grading</router-link>
               <router-link to="/admin/analytics" @click="closeMobile">Analytics</router-link>
+              <router-link to="/admin/llm" @click="closeMobile">Questions Generator</router-link>
               <router-link to="/admin/promos" @click="closeMobile">Promos</router-link>
               <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>
               <router-link to="/admin/team" @click="closeMobile">Team</router-link>
@@ -81,6 +90,8 @@
               <router-link to="/admin/categories" @click="closeMobile">Categories</router-link>
               <router-link to="/admin/readings" @click="closeMobile">Readings</router-link>
               <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
+              <router-link to="/admin/tryouts" @click="closeMobile">Tryouts</router-link>
+              <router-link to="/admin/llm" @click="closeMobile">Questions Generator</router-link>
               <router-link to="/admin/essays" @click="closeMobile">Essays Grading</router-link>
               <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>
               <router-link to="/admin/blog" @click="closeMobile">Blog</router-link>
@@ -98,6 +109,7 @@ import { useAuthStore } from '../store/auth'
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useClickOutside } from '../composables/useClickOutside'
+import api from '../api/client'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -107,6 +119,7 @@ const logoSrc = ref('/logo.svg')
 const showMobile = ref(false)
 const showSupportMenu = ref(false)
 const showAdminMenu = ref(false)
+const resumeSessionId = ref(null)
 
 const supportMenuRef = ref(null)
 const adminMenuRef = ref(null)
@@ -115,7 +128,10 @@ function closeAllMenus(){
   showSupportMenu.value = false
   showAdminMenu.value = false
 }
-function logout(){ auth.logout(); router.push('/') }
+function logout(){
+  try { localStorage.removeItem('active_tryout_session') } catch {}
+  auth.logout(); router.push('/')
+}
 function closeMobile(){ showMobile.value = false }
 function handleLogoutMobile(){ logout(); closeMobile() }
 function toggleSupportMenu(){ if(!showSupportMenu.value) closeAllMenus(); showSupportMenu.value = !showSupportMenu.value }
@@ -125,7 +141,46 @@ watch(() => route.path, () => { closeAllMenus(); closeMobile() })
 useClickOutside(supportMenuRef, () => showSupportMenu.value = false)
 useClickOutside(adminMenuRef, () => showAdminMenu.value = false)
 
-onMounted(() => { const l = localStorage.getItem('branding_logo'); if (l) logoSrc.value = l })
+async function detectResume(){
+  resumeSessionId.value = null
+  // Priority 1: localStorage key
+  try{
+    const cached = Number(localStorage.getItem('active_tryout_session') || 0)
+    if (cached){
+      try{
+        const { data } = await api.get(`/tryouts/sessions/${cached}/current`)
+        if (String(data.phase||'') !== 'done' && String(data.phase||'') !== 'finished'){
+          resumeSessionId.value = cached
+          return
+        } else {
+          localStorage.removeItem('active_tryout_session')
+        }
+      }catch{}
+    }
+  }catch{}
+  // Fallback: latest unfinished in history
+  try{
+    const { data: sessions } = await api.get('/tryouts/sessions/history', { params: { limit: 10, offset: 0 } })
+    const found = (sessions||[]).find(s => String(s.status||'') !== 'finished')
+    if (found){
+      try{
+        const { data } = await api.get(`/tryouts/sessions/${found.id}/current`)
+        if (String(data.phase||'') !== 'done' && String(data.phase||'') !== 'finished'){
+          resumeSessionId.value = found.id
+        } else {
+          resumeSessionId.value = null
+        }
+      }catch{}
+    }
+  }catch{}
+}
+
+onMounted(() => {
+  const l = localStorage.getItem('branding_logo'); if (l) logoSrc.value = l
+  detectResume()
+})
+watch(() => route.path, () => { closeAllMenus(); closeMobile(); detectResume() })
+watch(() => auth.isAuthenticated, () => { detectResume() })
 </script>
 
 <style scoped>
@@ -144,6 +199,7 @@ onMounted(() => { const l = localStorage.getItem('branding_logo'); if (l) logoSr
 .actions .link-login { text-decoration:underline; color: var(--muted); }
 .actions .btn.cta { background: var(--accent); border-color: rgba(0,0,0,0.08); color:#fff; }
 .actions .btn.cta:hover { filter:brightness(0.98); }
+.actions .btn.resume{ background:linear-gradient(90deg,#f97316,#fb923c); color:#fff; border:1px solid #fb923c; }
 
 .dropdown { position:relative; }
 .drop-toggle { color: var(--text); text-decoration:none; font-size:14px; display:inline-block; padding:6px 4px; cursor:pointer; }

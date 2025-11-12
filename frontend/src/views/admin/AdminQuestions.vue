@@ -22,6 +22,14 @@
         <div class="row full"><label>Set Title</label><input v-model="builder.title" class="input" placeholder="e.g., Latihan Anatomi 2025 #3" /></div>
         <div class="row full"><label>Description</label><input v-model="builder.description" class="input" placeholder="Optional" /></div>
         <div class="row"><label>Time (minutes)</label><input v-model.number="builder.time_limit_minutes" type="number" min="1" class="input" /></div>
+        <div class="row">
+          <label>Availability</label>
+          <select v-model="builderAvailability" class="input">
+            <option value="exam">Exam only</option>
+            <option value="tryout">Tryout only</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
       </div>
       <div v-if="mode==='manual'" class="q-list">
         <div v-for="(q,i) in builder.questions" :key="i" class="q-item">
@@ -108,6 +116,9 @@
         </div>
         <div v-if="importErrorNew" class="issues" style="margin-top:8px;">
           {{ importErrorNew }}
+
+// Refetch when availability changes
+watch(overviewAvailability, () => { refreshSetsOverview() })
         </div>
         <div v-if="previewOpenNew" class="preview-panel">
           <div class="preview-head">
@@ -162,6 +173,11 @@
           <option :value="null">All Categories</option>
           <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
+        <select class="input" v-model="overviewAvailability">
+          <option value="all">All availability</option>
+          <option value="exam">Exam only</option>
+          <option value="tryout">Tryout only</option>
+        </select>
         <select class="input" v-model="overviewSort">
           <option value="newest">Sort: New → Old</option>
           <option value="oldest">Sort: Old → New</option>
@@ -178,6 +194,8 @@
             <th>Category</th>
             <th style="width:100px;">Questions</th>
             <th style="width:220px;">Types</th>
+            <th style="width:120px;">Status</th>
+            <th style="width:140px;">Availability</th>
             <th style="width:100px;">Time (min)</th>
             <th style="width:120px;">Actions</th>
           </tr>
@@ -192,6 +210,12 @@
               <span class="tag">Multi {{ s.multi_count || 0 }}</span>
               <span class="tag">Essay {{ s.essay_count || 0 }}</span>
             </td>
+            <td>
+              <span class="badge" :class="s.is_active ? 'published' : 'unpublished'">{{ s.is_active ? 'Published' : 'Unpublished' }}</span>
+            </td>
+            <td>
+              <span class="badge info">{{ availabilityLabel(s) }}</span>
+            </td>
             <td>{{ s.time_limit_minutes }}</td>
             <td>
               <router-link class="btn tiny" :to="{ path: `/admin/sets/${s.id}` }">Edit</router-link>
@@ -205,7 +229,7 @@
   </AdminLayout>
 </template>
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 import RichTextEditor from '../../components/RichTextEditor.vue'
@@ -222,9 +246,11 @@ const setsOverview = ref([])
 // Sets Overview search/sort
 const overviewSearch = ref('')
 const overviewSort = ref('newest')
+const overviewAvailability = ref('all') // all | exam | tryout
 const overviewCategoryId = ref(null)
 // Set Builder state
 const builder = ref({ category_id:'', title:'', description:'', time_limit_minutes:105, questions: [] })
+const builderAvailability = ref('exam') // exam | tryout | both
 const readings = ref([])
 const previewReadingId = ref(null)
 function readingById(id){ return readings.value.find(r => r.id === id) }
@@ -279,22 +305,30 @@ async function downloadTemplateNew(){
   }
 }
 
+// Build query params for availability filter
+function buildAvailabilityParams(){
+  if (overviewAvailability.value === 'exam') return { allow_in_exam: 1, allow_in_tryout: 0 }
+  if (overviewAvailability.value === 'tryout') return { allow_in_tryout: 1, allow_in_exam: 0 }
+  return {}
+}
+
 async function refreshSetsOverview(){
-  // flatten all sets and count questions per set
+  // Use backend summary endpoint which returns counts in one query
   const allSets = []
+  const availabilityParams = buildAvailabilityParams()
   for (const c of categories.value){
-    const { data: sets } = await api.get('/sets/', { params: { category_id: c.id } })
-    for (const s of sets){
-      const { data: qs } = await api.get('/questions/', { params: { question_set_id: s.id } })
-      let mcq = 0, multi = 0, essay = 0
-      for (const q of qs){
-        const t = (q.question_type) ? String(q.question_type) : guessTypeFromOptions(q)
-        if (t === 'essay') essay++
-        else if (t === 'multi') multi++
-        else mcq++
+    try{
+      const { data } = await api.get('/sets/summary', { params: { category_id: c.id, include_inactive: 1, ...availabilityParams } })
+      // data is an array of summarized sets with count and per-type counts
+      for (const s of (data || [])){
+        allSets.push({
+          ...s,
+          // ensure flags exist for Availability column; when missing, assume true for both to avoid filtering out
+          allow_in_exam: s.allow_in_exam ?? true,
+          allow_in_tryout: s.allow_in_tryout ?? true,
+        })
       }
-      allSets.push({ ...s, count: qs.length, mcq_count: mcq, multi_count: multi, essay_count: essay })
-    }
+    }catch(e){ /* ignore category errors to keep page responsive */ }
   }
   setsOverview.value = allSets
 }
@@ -309,10 +343,14 @@ async function onCategoryChange(){
   sets.value = []
   selectedSetId.value = null
   if (selectedCategoryId.value){
-    const { data } = await api.get('/sets/', { params: { category_id: selectedCategoryId.value } })
-    sets.value = data
+    try{
+      const { data } = await api.get('/sets/summary', { params: { category_id: selectedCategoryId.value, include_inactive: 1, ...buildAvailabilityParams() } })
+      sets.value = data || []
+    }catch{ sets.value = [] }
   }
 }
+
+// Removed old fetchSetsForCategory; summary endpoint replaces it
 
 async function loadQuestions(){
   // no-op; filtering happens in computed below
@@ -325,6 +363,12 @@ const filteredSetsOverview = computed(() => {
   if (catId){ arr = arr.filter(s => s.category_id === catId) }
   if (selectedSetId.value){
     arr = arr.filter(s => s.id === selectedSetId.value)
+  }
+  // availability filter
+  if (overviewAvailability.value === 'exam'){
+    arr = arr.filter(s => s.allow_in_exam && !s.allow_in_tryout)
+  } else if (overviewAvailability.value === 'tryout'){
+    arr = arr.filter(s => s.allow_in_tryout)
   }
   if (selectedType.value === 'mcq'){
     arr = arr.filter(s => (s.mcq_count || 0) > 0)
@@ -357,6 +401,15 @@ const filteredSetsOverview = computed(() => {
 })
 
 const displayedSets = computed(() => filteredSetsOverview.value)
+
+function availabilityLabel(s){
+  const ex = !!s.allow_in_exam
+  const tr = !!s.allow_in_tryout
+  if (ex && tr) return 'Both'
+  if (tr) return 'Tryout only'
+  if (ex) return 'Exam only'
+  return '—'
+}
 
 async function removeSetOverview(id){
   try {
@@ -479,6 +532,8 @@ async function saveSetWithQuestions(){
     description: builder.value.description,
     time_limit_minutes: builder.value.time_limit_minutes,
     is_active: true,
+    allow_in_exam: builderAvailability.value === 'both' || builderAvailability.value === 'exam',
+    allow_in_tryout: builderAvailability.value === 'both' || builderAvailability.value === 'tryout',
     questions: builder.value.questions.map(q => {
       const base = {
         question_text: toRich(q.question_text, q.question_img),
@@ -640,5 +695,9 @@ async function doImportNew(){
 .sets-table thead th{ position:sticky; top:0; background:#fff; border-bottom:2px solid #e2e8f0; text-align:left; padding:8px 10px; }
 .sets-table td{ border-bottom:1px solid #e2e8f0; padding:8px 10px; vertical-align:top; }
 .tag{ display:inline-block; margin-right:8px; padding:2px 8px; background:#eef2ff; border-radius:999px; font-size:12px; color:#3730a3; }
+.badge{ display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; background:#e2e8f0; color:#0f172a; }
+.badge.published{ background:#dcfce7; color:#065f46; }
+.badge.unpublished{ background:#fee2e2; color:#7f1d1d; }
+.badge.info{ background:#e0f2fe; color:#075985; }
 .image-row { display:flex; gap:8px; align-items:center; }
 </style>

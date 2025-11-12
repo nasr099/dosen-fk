@@ -4,7 +4,7 @@
       <h2>{{ setTitle || 'Exam' }}</h2>
       <div class="time"><strong>Time Left:</strong> {{ minutes }}:{{ seconds.toString().padStart(2,'0') }}</div>
     </div>
-    <div class="guard-bar">
+    <div class="guard-bar" v-if="GUARD_ENABLED">
       <span class="dot" :class="{ ok: !inViolation, warn: inViolation }"></span>
       Keep the exam in fullscreen and this tab active. Violations {{ violations }} / {{ VIOLATION_LIMIT }}.
     </div>
@@ -138,8 +138,8 @@
       </div>
     </div>
 
-    <!-- Violation reached modal -->
-    <div v-if="endedByViolation" class="modal-overlay">
+    <!-- Violation reached modal (disabled for ordinary exam) -->
+    <div v-if="GUARD_ENABLED && endedByViolation" class="modal-overlay">
       <div class="modal">
         <div class="modal-head">Exam Stopped</div>
         <div class="modal-body">
@@ -208,6 +208,8 @@ const showAuthModal = ref(false)
 const submitError = ref('')
 const pendingSubmitCache = ref(null)
 
+// --- Anti-cheat toggle (disabled for ordinary exam) ---
+const GUARD_ENABLED = false
 // --- Anti-cheat state ---
 const violations = ref(0)
 const VIOLATION_LIMIT = 3
@@ -248,6 +250,7 @@ async function endForViolation(){
 }
 
 async function requestFullscreen(){
+  if (!GUARD_ENABLED) return
   const el = document.documentElement
   if (!document.fullscreenElement && el?.requestFullscreen){
     fullscreenRequested = true
@@ -255,13 +258,10 @@ async function requestFullscreen(){
   }
 }
 
-function ensureFullscreen(){
-  if (!document.fullscreenElement){
-    requestFullscreen()
-  }
-}
+function ensureFullscreen(){ if (GUARD_ENABLED) { if (!document.fullscreenElement) requestFullscreen() } }
 
 function onFullscreenChange(){
+  if (!GUARD_ENABLED) return
   if (!document.fullscreenElement && fullscreenRequested){
     maybeViolate('exit-fullscreen')
     // attempt to re-enter
@@ -269,14 +269,13 @@ function onFullscreenChange(){
   }
 }
 
-function onVisibility(){
-  if (document.hidden){ maybeViolate('tab-hidden') }
-}
+function onVisibility(){ if (GUARD_ENABLED && document.hidden){ maybeViolate('tab-hidden') } }
 
-function onBlur(){ maybeViolate('window-blur') }
+function onBlur(){ if (GUARD_ENABLED) maybeViolate('window-blur') }
 function blockContextMenu(e){ e.preventDefault() }
 function blockClipboard(e){ e.preventDefault() }
 function onKeydown(e){
+  if (!GUARD_ENABLED) return
   const k = e.key.toLowerCase()
   const meta = e.ctrlKey || e.metaKey
   // Block common shortcuts: copy/print/save/find/devtools
@@ -464,8 +463,8 @@ onMounted(async () => {
     }, 1000)
 
     loaded.value = true
-    // Activate focus guard after content is ready
-    setupGuards()
+    // Guards disabled for ordinary exam
+    if (GUARD_ENABLED) setupGuards()
   } catch (e) {
     const status = e?.response?.status
     if (status === 401 || status === 403) {
@@ -478,6 +477,7 @@ onMounted(async () => {
 })
 
 function setupGuards(){
+  if (!GUARD_ENABLED) return
   // require fullscreen to start
   requestFullscreen()
   document.addEventListener('fullscreenchange', onFullscreenChange)
@@ -629,7 +629,7 @@ onMounted(async () => {
 .cell.multi{ position:relative; }
 .cell.multi::after{ content:'M'; position:absolute; top:-6px; right:-6px; background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; width:16px; height:16px; font-size:11px; line-height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; }
 .question-card{ background:white; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
-.reading-card{ margin:12px 12px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #6366f1; border-radius:12px; box-shadow: 0 6px 16px rgba(2,6,23,0.05); overflow:hidden; position: sticky; top: 0; z-index: 2; }
+.reading-card{ margin:12px 12px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; box-shadow: 0 6px 16px rgba(2,6,23,0.05); overflow:hidden; position: sticky; top: 0; z-index: 2; }
 .reading-card.collapsed{ box-shadow:none; }
 .reading-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; background:linear-gradient(90deg, rgba(99,102,241,0.12), rgba(99,102,241,0.06)); border-bottom:1px solid #e5e7eb; }
 .reading-title{ font-weight:800; font-size:16px; color:#111827; }

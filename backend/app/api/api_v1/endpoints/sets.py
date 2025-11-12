@@ -5,9 +5,9 @@ from typing import List, Optional
 from openpyxl_image_loader import SheetImageLoader
 from openpyxl.utils import get_column_letter
 from io import BytesIO
-from app.api.deps import get_current_admin_user, get_current_staff_user
-from app.db.base import get_db
+from app.api.deps import get_db, get_current_staff_user
 from app.core.config import settings
+from app.db.base import get_db
 from app.db.models import (
     QuestionSet as QuestionSetModel,
     Category as CategoryModel,
@@ -172,28 +172,47 @@ def download_import_template():
         'Content-Disposition': 'attachment; filename="question_import_template.xlsx"'
     })
 
+
+
  
 
 @router.get("/", response_model=List[QuestionSetSchema])
 def list_sets(
     db: Session = Depends(get_db),
-    category_id: Optional[int] = Query(None)
+    category_id: Optional[int] = Query(None),
+    allow_in_exam: Optional[bool] = Query(None),
+    allow_in_tryout: Optional[bool] = Query(None),
+    include_inactive: Optional[bool] = Query(False),
+    is_active: Optional[bool] = Query(None),
 ):
-    q = db.query(QuestionSetModel).filter(QuestionSetModel.is_active == True)
+    q = db.query(QuestionSetModel)
+    # Active filter: explicit is_active overrides include_inactive
+    if is_active is not None:
+        q = q.filter(QuestionSetModel.is_active == is_active)
+    elif not include_inactive:
+        q = q.filter(QuestionSetModel.is_active == True)
     if category_id is not None:
         q = q.filter(QuestionSetModel.category_id == category_id)
+    if allow_in_exam is not None:
+        q = q.filter(QuestionSetModel.allow_in_exam == allow_in_exam)
+    if allow_in_tryout is not None:
+        q = q.filter(QuestionSetModel.allow_in_tryout == allow_in_tryout)
     return q.order_by(QuestionSetModel.created_at.desc()).all()
 
 @router.get("/summary")
 def list_sets_summary(
     db: Session = Depends(get_db),
-    category_id: Optional[int] = Query(None)
+    category_id: Optional[int] = Query(None),
+    allow_in_exam: Optional[bool] = Query(None),
+    allow_in_tryout: Optional[bool] = Query(None),
+    include_inactive: Optional[bool] = Query(False),
+    is_active: Optional[bool] = Query(None),
 ):
     """
     Return sets with aggregated question counts without fetching all questions.
     Response: [{ id, category_id, title, description, time_limit_minutes, access_level, created_at, updated_at, count }]
     """
-    from sqlalchemy import func
+    from sqlalchemy import func, case
     from sqlalchemy.orm import aliased
     qs = QuestionSetModel
     q = QuestionModel
@@ -204,16 +223,29 @@ def list_sets_summary(
         qs.description,
         qs.time_limit_minutes,
         qs.is_active,
+        qs.allow_in_exam,
+        qs.allow_in_tryout,
         qs.access_level,
         qs.created_at,
         qs.updated_at,
         func.count(q.id).label('count'),
+        func.sum(case((q.question_type == 'mcq', 1), else_=0)).label('mcq_count'),
+        func.sum(case((q.question_type == 'multi', 1), else_=0)).label('multi_count'),
+        func.sum(case((q.question_type == 'essay', 1), else_=0)).label('essay_count'),
     ).outerjoin(q, q.question_set_id == qs.id)
-    base = base.filter(qs.is_active == True)
+    # Active filter
+    if is_active is not None:
+        base = base.filter(qs.is_active == is_active)
+    elif not include_inactive:
+        base = base.filter(qs.is_active == True)
     if category_id is not None:
         base = base.filter(qs.category_id == category_id)
+    if allow_in_exam is not None:
+        base = base.filter(qs.allow_in_exam == allow_in_exam)
+    if allow_in_tryout is not None:
+        base = base.filter(qs.allow_in_tryout == allow_in_tryout)
     rows = base.group_by(
-        qs.id, qs.category_id, qs.title, qs.description, qs.time_limit_minutes, qs.is_active, qs.access_level, qs.created_at, qs.updated_at
+        qs.id, qs.category_id, qs.title, qs.description, qs.time_limit_minutes, qs.is_active, qs.allow_in_exam, qs.allow_in_tryout, qs.access_level, qs.created_at, qs.updated_at
     ).order_by(qs.created_at.desc()).all()
     return [
         {
@@ -223,10 +255,15 @@ def list_sets_summary(
             'description': r.description,
             'time_limit_minutes': r.time_limit_minutes,
             'is_active': r.is_active,
+            'allow_in_exam': getattr(r, 'allow_in_exam', None),
+            'allow_in_tryout': getattr(r, 'allow_in_tryout', None),
             'access_level': r.access_level,
             'created_at': r.created_at,
             'updated_at': r.updated_at,
             'count': int(r.count or 0),
+            'mcq_count': int(getattr(r, 'mcq_count', 0) or 0),
+            'multi_count': int(getattr(r, 'multi_count', 0) or 0),
+            'essay_count': int(getattr(r, 'essay_count', 0) or 0),
         }
         for r in rows
     ]
@@ -249,8 +286,8 @@ def update_set_with_questions(
     if not s:
         raise HTTPException(status_code=404, detail="Set not found")
 
-    # update set fields
-    for k, v in payload.model_dump(exclude_unset=True, exclude={"questions"}).items():
+    # update set fields (immutability: do not allow changing availability flags)
+    for k, v in payload.model_dump(exclude_unset=True, exclude={"questions", "allow_in_exam", "allow_in_tryout"}).items():
         setattr(s, k, v)
     db.commit()
     db.refresh(s)
@@ -719,6 +756,8 @@ def create_set_with_questions(
         time_limit_minutes=payload.time_limit_minutes,
         is_active=payload.is_active,
         access_level=getattr(payload, 'access_level', 'free') or 'free',
+        allow_in_exam=getattr(payload, 'allow_in_exam', True),
+        allow_in_tryout=getattr(payload, 'allow_in_tryout', False),
     )
     db.add(s)
     db.commit()

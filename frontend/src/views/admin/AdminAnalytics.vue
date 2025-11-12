@@ -4,6 +4,58 @@
     <div class="card analytics">
     <h2 style="margin-top:0">Analytics</h2>
 
+    <h3>Tryout Analytics</h3>
+    <div class="card" style="padding:12px;">
+      <form class="filters" @submit.prevent="applyTs">
+        <select class="input" v-model.number="tryoutId" required>
+          <option disabled :value="0">Select Tryout</option>
+          <option v-for="t in tryouts" :key="'t-'+t.id" :value="t.id">{{ t.title }}</option>
+        </select>
+        <input class="input" v-model="tsQ" placeholder="Search by user email" />
+        <button class="btn small" type="submit">Apply</button>
+      </form>
+      <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Session ID</th>
+            <th>User</th>
+            <th>Status</th>
+            <th>Started</th>
+            <th>Finished</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in trows" :key="r.session_id">
+            <td>{{ r.session_id }}</td>
+            <td>{{ r.user_email }}</td>
+            <td>{{ r.status }}</td>
+            <td>{{ fmt(r.started_at) }}</td>
+            <td>{{ fmt(r.finished_at) }}</td>
+            <td>{{ r.sets_finished }} / {{ r.sets_total }}</td>
+          </tr>
+          <tr v-if="trows.length===0"><td colspan="6" class="muted">No sessions</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="pager">
+        <div class="pager-left">
+          <label>Rows</label>
+          <select v-model.number="tsPageSize" @change="toTsPage(1)">
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+          </select>
+        </div>
+        <div class="pager-right">
+          <button class="btn small secondary" :disabled="tsPage<=1" @click="toTsPage(tsPage-1)">Prev</button>
+          <span>Page {{ tsPage }} • Total {{ tsTotal }}</span>
+          <button class="btn small" :disabled="trows.length < tsPageSize" @click="toTsPage(tsPage+1)">Next</button>
+        </div>
+      </div>
+    </div>
+
     <h3>Sets Overview</h3>
     <div class="card" style="padding:12px;">
       <div class="table-wrap">
@@ -213,6 +265,14 @@ import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 import Chart from 'chart.js/auto'
 
+const tryouts = ref([])
+const tryoutId = ref(0)
+const tsQ = ref('')
+const trows = ref([])
+const tsTotal = ref(0)
+const tsPage = ref(1)
+const tsPageSize = ref(20)
+
 const sets = ref([])
 const rows = ref([])
 const total = ref(0)
@@ -228,6 +288,22 @@ const isLastPage = computed(() => rows.value.length < pageSize.value)
 function fmtPct(n){ return `${Math.round((Number(n)||0))}%` }
 function fmt(s){ try{ return new Date(s).toLocaleString() } catch { return s } }
 function short(s){ s = String(s||''); return s.length>120 ? s.slice(0,117)+'…' : s }
+
+async function loadTryouts(){
+  const { data } = await api.get('/tryouts/', { params: { include_all: 1, paginated: 0, status: 'all' } })
+  // when not paginated, backend returns an array
+  tryouts.value = Array.isArray(data) ? data : (data?.items||[])
+  if (!tryoutId.value && tryouts.value.length){ tryoutId.value = tryouts.value[0].id }
+}
+async function loadTryoutSessions(){
+  if (!tryoutId.value) { trows.value = []; tsTotal.value = 0; return }
+  const params = { tryout_id: tryoutId.value, q: tsQ.value, page: tsPage.value, page_size: tsPageSize.value }
+  const { data } = await api.get('/tryouts/analytics/tryout-sessions', { params })
+  tsTotal.value = data.total
+  trows.value = data.items
+}
+function toTsPage(p){ tsPage.value = Math.max(1, p); loadTryoutSessions() }
+function applyTs(){ tsPage.value = 1; loadTryoutSessions() }
 
 async function loadSets(){
   const { data } = await api.get('/analytics/sets')
@@ -258,7 +334,7 @@ async function exportCsv(){
   a.remove()
 }
 
-onMounted(async () => { await loadSets(); await loadSessions() })
+onMounted(async () => { await loadTryouts(); await loadTryoutSessions(); await loadSets(); await loadSessions() })
 
 // ---------- Charts ----------
 const trendRef = ref(null)
