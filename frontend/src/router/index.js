@@ -30,6 +30,7 @@ import AdminEssayGrading from '../views/admin/AdminEssayGrading.vue'
 import AdminReadings from '../views/admin/AdminReadings.vue'
 import AdminAnalytics from '../views/admin/AdminAnalytics.vue'
 import AdminLLM from '../views/admin/AdminLLM.vue'
+import AdminLLMScan from '../views/admin/AdminLLMScan.vue'
 // Tryouts
 import AdminTryoutBuilder from '../views/admin/AdminTryoutBuilder.vue'
 import TryoutLobby from '../views/tryout/TryoutLobby.vue'
@@ -72,6 +73,7 @@ const routes = [
   { path: '/admin/essays', component: AdminEssayGrading },
   { path: '/admin/analytics', component: AdminAnalytics },
   { path: '/admin/llm', component: AdminLLM },
+  { path: '/admin/llm-scan', component: AdminLLMScan },
   { path: '/admin/readings', component: AdminReadings },
   { path: '/admin/tryouts', component: AdminTryoutBuilder },
   { path: '/tryout/:id', component: TryoutLobby, props: true },
@@ -115,6 +117,7 @@ router.beforeEach((to, from, next) => {
         '/admin/blog',
         '/admin/readings',
         '/admin/llm',
+        '/admin/llm-scan',
       ]
       const ok = allowed.some(p => to.path === p || to.path.startsWith(p + '/'))
       if (!ok){

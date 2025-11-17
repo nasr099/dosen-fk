@@ -42,6 +42,10 @@
           <span class="icon">🤖</span>
           <span>Questions Generator</span>
         </RouterLink>
+        <RouterLink v-if="isAdmin || isTeacher" to="/admin/llm-scan" class="nav-item" :class="{active: $route.path.startsWith('/admin/llm-scan')}">
+          <span class="icon">🧾</span>
+          <span>Question Scanner</span>
+        </RouterLink>
         <RouterLink v-if="isAdmin" to="/admin/promos" class="nav-item" :class="{active: $route.path.startsWith('/admin/promos')}">
           <span class="icon">🏷️</span>
           <span>Promos</span>
