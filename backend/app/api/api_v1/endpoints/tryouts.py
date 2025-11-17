@@ -560,6 +560,14 @@ def submit_answer(
         corr = as_set(sel) == as_set(q.correct_answer or '')
     elif t == 'essay':
         corr = False
+    elif t == 'short':
+        # Allow entry via essay_answer as well; match case-insensitive; allow multiple with '|'
+        def _norm(s: str):
+            s = (s or '').strip().lower()
+            return ' '.join(s.split())
+        s = _norm(sel or '')
+        allowed = [_norm(x) for x in (q.correct_answer or '').split('|') if (x or '').strip()]
+        corr = bool(allowed) and (s in allowed)
     else:
         corr = sel.upper() == (q.correct_answer or '').upper()
     # Use upsert to avoid duplicates
@@ -665,20 +673,20 @@ def get_tryout_result(session_id: int, db: Session = Depends(get_db), user=Depen
         # --- Per-set breakdown ---
         qset_id = ts.question_set_id if ts else 0
         # Objective questions in this set
-        obj_total = db.query(QuestionModel).filter(QuestionModel.question_set_id == qset_id, QuestionModel.question_type.in_(["mcq", "multi"])) .count()
+        obj_total = db.query(QuestionModel).filter(QuestionModel.question_set_id == qset_id, QuestionModel.question_type.in_(["mcq", "multi", "short"])) .count()
         # Answers for this set session joined with Question to filter types
         from app.db.models import TryoutAnswer as TryoutAnswerModel, EssayGrade as EssayGradeModel
         # Objective answered and correct
         obj_answered = (
             db.query(TryoutAnswerModel)
             .join(QuestionModel, TryoutAnswerModel.question_id == QuestionModel.id)
-            .filter(TryoutAnswerModel.tryout_set_session_id == s.id, QuestionModel.question_set_id == qset_id, QuestionModel.question_type.in_(["mcq", "multi"]))
+            .filter(TryoutAnswerModel.tryout_set_session_id == s.id, QuestionModel.question_set_id == qset_id, QuestionModel.question_type.in_(["mcq", "multi", "short"]))
             .count()
         )
         obj_correct = (
             db.query(TryoutAnswerModel)
             .join(QuestionModel, TryoutAnswerModel.question_id == QuestionModel.id)
-            .filter(TryoutAnswerModel.tryout_set_session_id == s.id, QuestionModel.question_set_id == qset_id, QuestionModel.question_type.in_(["mcq", "multi"]), TryoutAnswerModel.is_correct == True)
+            .filter(TryoutAnswerModel.tryout_set_session_id == s.id, QuestionModel.question_set_id == qset_id, QuestionModel.question_type.in_(["mcq", "multi", "short"]), TryoutAnswerModel.is_correct == True)
             .count()
         )
         obj_pct = (obj_correct / obj_total * 100.0) if obj_total else 0.0
@@ -734,7 +742,10 @@ def get_tryout_result(session_id: int, db: Session = Depends(get_db), user=Depen
         set_ids.append(s.id)
         qset_ids.append(ts.question_set_id)
     if qset_ids:
-        objective_total = db.query(QuestionModel).filter(QuestionModel.question_set_id.in_(qset_ids), QuestionModel.question_type.in_(["mcq", "multi"])) .count()
+        objective_total = db.query(QuestionModel).filter(
+            QuestionModel.question_set_id.in_(qset_ids),
+            QuestionModel.question_type.in_(["mcq", "multi", "short"])
+        ).count()
     overall = (total_pct / n) if n else 0.0
     # Essay metrics
     essay_count = 0
@@ -810,7 +821,7 @@ def get_tryout_history(
                 qset_ids.append(ts.question_set_id)
         objective_total = 0
         if qset_ids:
-            objective_total = db.query(QuestionModel).filter(QuestionModel.question_set_id.in_(qset_ids), QuestionModel.question_type.in_(["mcq","multi"])) .count()
+            objective_total = db.query(QuestionModel).filter(QuestionModel.question_set_id.in_(qset_ids), QuestionModel.question_type.in_(["mcq","multi","short"])) .count()
         pct = (correct_total / max(1, objective_total)) * 100.0
         # Resolve tryout title
         t = db.query(TryoutModel).filter(TryoutModel.id == sess.tryout_id).first()

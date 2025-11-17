@@ -5,8 +5,13 @@
     
     <h2 style="margin-top:0">Questions</h2>
 
-    
-    <div class="builder">
+    <!-- Section Tabs: Builder vs Sets Overview -->
+    <div class="section-tabs">
+      <button class="section-tab" :class="{ active: section==='builder' }" @click="section='builder'">Questions Builder</button>
+      <button class="section-tab" :class="{ active: section==='overview' }" @click="section='overview'">Sets Overview</button>
+    </div>
+
+    <div v-if="section==='builder'" class="builder">
       <div class="tabs" style="margin-bottom:10px;">
         <button class="tab" :class="{ active: mode==='manual' }" @click="mode='manual'">Build Manually</button>
         <button class="tab" :class="{ active: mode==='import' }" @click="mode='import'">Import from Excel</button>
@@ -31,18 +36,40 @@
           </select>
         </div>
       </div>
+      <div v-if="mode==='manual'" style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+        <button class="btn tiny secondary" @click="showAllBuilder()">Show all</button>
+        <button class="btn tiny secondary" @click="hideAllBuilder()">Hide all</button>
+      </div>
       <div v-if="mode==='manual'" class="q-list">
-        <div v-for="(q,i) in builder.questions" :key="i" class="q-item">
+        <div
+          v-for="(q,i) in builder.questions"
+          :key="i"
+          class="q-item"
+          :draggable="true"
+          @dragstart="onDragStartB(i)"
+          @dragover.prevent="onDragOverB(i, $event)"
+          @drop.prevent="onDropB(i)"
+          @dragend="onDragEndB"
+        >
           <div class="q-head">
-            <div class="q-index">Q{{ i+1 }}</div>
-            <button class="btn secondary" @click="removeBuilderQuestion(i)">Remove</button>
+            <div class="q-index" style="display:flex; align-items:center; gap:8px;">
+              <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+              <span>Q{{ i+1 }}</span>
+              <span v-if="q._collapsed" class="q-preview">{{ shortPreviewB(q) }}</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn tiny secondary" @click="q._collapsed = !q._collapsed">{{ q._collapsed ? 'Expand' : 'Collapse' }}</button>
+              <button class="btn secondary" @click="removeBuilderQuestion(i)">Remove</button>
+            </div>
           </div>
+          <div v-show="!q._collapsed">
           <div class="row" style="margin-bottom:6px;">
             <label style="font-weight:600;">Type</label>
             <select v-model="q.type" class="input" style="max-width:220px;">
               <option value="mcq">Multiple Choice (single)</option>
               <option value="multi">Multiple Answers</option>
               <option value="essay">Essay</option>
+              <option value="short">Short Answer</option>
             </select>
           </div>
           <div class="row" style="margin-bottom:6px;">
@@ -67,34 +94,52 @@
           <label style="font-weight:600; margin-bottom:4px; display:block;">Question text</label>
           <RichTextEditor v-model="q.question_text" placeholder="Write the question here..." />
           <CdnUploader v-model="q.question_img" />
-          <div v-if="q.type==='mcq' || q.type==='multi'" class="opt-grid">
-            <div v-for="(opt, oi) in q.options" :key="oi" class="opt-item">
-              <div class="opt-head">
-                <span class="badge">{{ letter(oi) }}</span>
-                <button v-if="q.options.length > 1" class="btn tiny secondary" @click="removeOption(q, oi)">Remove</button>
-              </div>
-              <input v-model="opt.text" class="input" :placeholder="`Option ${letter(oi)}`" />
-              <CdnUploader v-model="opt.img" />
-              <label v-if="q.type==='multi'" style="display:flex; align-items:center; gap:6px; font-size:13px; color:#334155;">
-                <input type="checkbox" :checked="(q.correct_idxs||[]).includes(oi)" @change="toggleMultiCorrect(q, oi, $event)"/>
-                Mark as correct
-              </label>
-            </div>
+          <div v-if="q.type==='mcq' || q.type==='multi'" class="opt-wrap">
+            <table class="opt-table">
+              <thead>
+                <tr>
+                  <th style="width:60px;">Label</th>
+                  <th>Answer Text</th>
+                  <th style="width:260px;">Image</th>
+                  <th style="width:90px;">Correct</th>
+                  <th style="width:100px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(opt, oi) in q.options" :key="oi">
+                  <td class="opt-label"><span class="badge">{{ letter(oi) }}</span></td>
+                  <td class="opt-text"><input v-model="opt.text" class="input" :placeholder="`Option ${letter(oi)}`" /></td>
+                  <td class="opt-img"><CdnUploader v-model="opt.img" /></td>
+                  <td class="opt-correct">
+                    <template v-if="q.type==='mcq'">
+                      <input type="radio" :name="`correct-${i}`" :checked="q.correct_idx===oi" @change="q.correct_idx=oi" />
+                    </template>
+                    <template v-else>
+                      <input type="checkbox" :checked="(q.correct_idxs||[]).includes(oi)" @change="toggleMultiCorrect(q, oi, $event)"/>
+                    </template>
+                  </td>
+                  <td class="opt-actions-cell">
+                    <button v-if="q.options.length > 1" class="btn tiny secondary" @click="removeOption(q, oi)">Remove</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           <div v-if="q.type==='mcq' || q.type==='multi'" class="opt-actions">
             <button class="btn secondary" :disabled="q.options.length >= 5" @click="addOption(q)">+ Add answer</button>
-            <template v-if="q.type==='mcq'">
-              <select v-model.number="q.correct_idx" class="input" style="max-width:180px;">
-                <option v-for="(opt, oi) in q.options" :key="`c-${oi}`" :value="oi">Correct: {{ letter(oi) }}</option>
-              </select>
-            </template>
-            <template v-else>
-              <span class="muted">Select one or more correct answers above</span>
+            <template v-if="q.type==='multi'">
+              <span class="muted">Select one or more correct answers in the table</span>
             </template>
           </div>
-          <div v-else class="muted" style="margin:6px 0 0;">Essay question. No predefined options. Answers will be graded manually.</div>
+          <div v-else-if="q.type==='essay'" class="muted" style="margin:6px 0 0;">Essay question. No predefined options. Answers will be graded manually.</div>
+          <div v-else-if="q.type==='short'" class="row" style="margin:6px 0 0;">
+            <label style="font-weight:600;">Correct short answer</label>
+            <input v-model="q.short_answer" class="input" placeholder="Type the expected answer" />
+            <small class="muted">Case-insensitive match. For multiple acceptable answers, separate with | (pipe).</small>
+          </div>
           <label style="font-weight:600; margin-bottom:4px; display:block;">Explanation (optional)</label>
           <RichTextEditor v-model="q.explanation" placeholder="Add explanation..." />
+          </div>
         </div>
       </div>
 
@@ -102,12 +147,13 @@
         <button class="btn secondary" @click="addBuilderQuestion('mcq')">+ Add MCQ</button>
         <button class="btn secondary" @click="addBuilderQuestion('multi')">+ Add Multiple</button>
         <button class="btn secondary" @click="addBuilderQuestion('essay')">+ Add Essay</button>
+        <button class="btn secondary" @click="addBuilderQuestion('short')">+ Add Short</button>
         <button class="btn" :disabled="builderIssues.length>0" @click="onSaveClicked">Save set</button>
       </div>
       <!-- Import from Excel when creating a new set -->
       <div v-if="mode==='import'" class="import-card">
         <h3>Import Questions from Excel (.xlsx)</h3>
-        <p class="muted">Fill Category, Title and Time first. Upload a file with headers: <code>type, question_text, question_img, option_a_text, option_a_img, ... option_e_text, option_e_img, correct_answer, explanation</code>.</p>
+        <p class="muted">Fill Category, Title and Time first. Upload a file with headers: <code>type, question_text, question_img, option_a_text, option_a_img, ... option_e_text, option_e_img, correct_answer, explanation</code>. Types: <code>mcq</code> | <code>multi</code> | <code>essay</code> | <code>short</code>.</p>
         <div class="import-row">
           <input ref="fileInput" type="file" accept=".xlsx" @change="onFileChangeNew" />
           <button type="button" class="btn" :disabled="!xlsxFileNew || importingNew" @click="doImportNew">{{ importingNew ? 'Importing…' : 'Import' }}</button>
@@ -165,7 +211,7 @@ watch(overviewAvailability, () => { refreshSetsOverview() })
       </div>
       
     </div>
-    <div class="sets-wrap">
+    <div v-if="section==='overview'" class="sets-wrap">
       <h3>Sets Overview</h3>
       <div class="sets-toolbar">
         <input class="input" v-model="overviewSearch" placeholder="Search by title or category…" />
@@ -209,6 +255,7 @@ watch(overviewAvailability, () => { refreshSetsOverview() })
               <span class="tag">MCQ {{ s.mcq_count || 0 }}</span>
               <span class="tag">Multi {{ s.multi_count || 0 }}</span>
               <span class="tag">Essay {{ s.essay_count || 0 }}</span>
+              <span class="tag">Short {{ s.short_count || 0 }}</span>
             </td>
             <td>
               <span class="badge" :class="s.is_active ? 'published' : 'unpublished'">{{ s.is_active ? 'Published' : 'Unpublished' }}</span>
@@ -237,6 +284,7 @@ import CdnUploader from '../../components/CdnUploader.vue'
 import { useRouter } from 'vue-router'
 const categories = ref([])
 const subCategories = computed(() => (categories.value || []).filter(c => !!c.parent_id))
+const section = ref('builder') // 'builder' | 'overview'
 const mode = ref('manual') // 'manual' | 'import'
 const sets = ref([])
 const selectedCategoryId = ref(null)
@@ -264,6 +312,28 @@ const createdSetId = ref(null) // draft set created for preview/import
 const templateUrl = `${window.location.origin.replace('5173','8000')}/api/v1/sets/import-template.xlsx`
 const importErrorNew = ref('')
 const router = useRouter()
+
+// DnD state for Builder list
+const draggingIndexB = ref(-1)
+function onDragStartB(i){ draggingIndexB.value = i }
+function onDragOverB(i, ev){ ev.dataTransfer && (ev.dataTransfer.dropEffect = 'move') }
+function onDropB(i){
+  const from = draggingIndexB.value
+  const to = i
+  if (from === -1 || to === -1 || from === to) return
+  const arr = builder.value.questions
+  const item = arr.splice(from,1)[0]
+  arr.splice(to,0,item)
+  draggingIndexB.value = -1
+}
+function onDragEndB(){ draggingIndexB.value = -1 }
+function stripHtmlB(s){ return String(s||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim() }
+function shortPreviewB(q){
+  const t = stripHtmlB(q?.question_text)
+  if (t) return t.length>80 ? t.slice(0,80)+"…" : t
+  if (q?.question_img) return '[Image]'
+  return ''
+}
 
 async function load(){
   const { data: cats } = await api.get('/categories/')
@@ -430,7 +500,7 @@ function addBuilderQuestion(type='mcq'){
       type:'essay',
       question_text:'', question_img:'',
       options:[], correct_idx:null,
-      explanation:'', is_featured:false, difficulty_level:'medium'
+      explanation:'', is_featured:false, difficulty_level:'medium', _collapsed:false
     })
   } else if (type === 'multi'){
     builder.value.questions.push({
@@ -438,7 +508,15 @@ function addBuilderQuestion(type='mcq'){
       question_text:'', question_img:'',
       options:[ { text:'', img:'' }, { text:'', img:'' }, { text:'', img:'' } ],
       correct_idxs: [],
-      explanation:'', is_featured:false, difficulty_level:'medium', reading_id: null
+      explanation:'', is_featured:false, difficulty_level:'medium', reading_id: null, _collapsed:false
+    })
+  } else if (type === 'short'){
+    builder.value.questions.push({
+      type:'short',
+      question_text:'', question_img:'',
+      short_answer:'',
+      options:[], correct_idx:null,
+      explanation:'', is_featured:false, difficulty_level:'medium', reading_id: null, _collapsed:false
     })
   } else {
     builder.value.questions.push({
@@ -446,10 +524,12 @@ function addBuilderQuestion(type='mcq'){
       question_text:'', question_img:'',
       options:[ { text:'', img:'' }, { text:'', img:'' }, { text:'', img:'' } ],
       correct_idx: 0,
-      explanation:'', is_featured:false, difficulty_level:'medium', reading_id: null
+      explanation:'', is_featured:false, difficulty_level:'medium', reading_id: null, _collapsed:false
     })
   }
 }
+function showAllBuilder(){ (builder.value.questions||[]).forEach(q => q._collapsed = false) }
+function hideAllBuilder(){ (builder.value.questions||[]).forEach(q => q._collapsed = true) }
 function toggleMultiCorrect(q, idx, ev){
   const set = new Set(q.correct_idxs || [])
   if (ev.target.checked) set.add(idx); else set.delete(idx)
@@ -468,6 +548,9 @@ const canSaveSet = computed(() => {
     if (!hasStem) return false
     if ((q.type||'mcq') === 'essay'){
       return true
+    }
+    if (q.type==='short'){
+      return !!(q.short_answer && q.short_answer.trim())
     }
     if (!Array.isArray(q.options) || q.options.length < 1 || q.options.length > 5) return false
     const allOptsOk = q.options.every(op => (op.text && op.text.trim()) || (op.img && op.img.trim()))
@@ -517,6 +600,10 @@ const builderIssues = computed(() => {
       if (!Array.isArray(q.correct_idxs) || q.correct_idxs.length < 1){
         issues.push(`Q${idx+1}: select at least one correct answer`)
       }
+    } else if (type === 'short'){
+      if (!q.short_answer || !q.short_answer.trim()){
+        issues.push(`Q${idx+1}: provide the correct short answer`)
+      }
     }
   })
   return issues
@@ -545,6 +632,8 @@ async function saveSetWithQuestions(){
       }
       if ((q.type||'mcq') === 'essay'){
         return { ...base, option_a:'', option_b:'', option_c:'', option_d:'', option_e:'', correct_answer:'' }
+      } else if ((q.type||'') === 'short'){
+        return { ...base, option_a:'', option_b:'', option_c:'', option_d:'', option_e:'', correct_answer: (q.short_answer||'').trim() }
       }
       const texts = (q.options || []).map(op => toRich(op.text, op.img))
       const pad = (i) => texts[i] || ''
@@ -610,6 +699,8 @@ async function ensureDraftSet(){
     time_limit_minutes: builder.value.time_limit_minutes || 60,
     is_active: true,
     access_level: 'free',
+    allow_in_exam: builderAvailability.value === 'both' || builderAvailability.value === 'exam',
+    allow_in_tryout: builderAvailability.value === 'both' || builderAvailability.value === 'tryout',
   }
   const { data } = await api.post('/sets/', payload)
   createdSetId.value = data.id
@@ -656,6 +747,9 @@ async function doImportNew(){
 .tabs { display:flex; gap:8px; margin-bottom:12px; }
 .tab { padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0; background:white; cursor:pointer; }
 .tab.active { background:#2563eb; color:white; border-color:#2563eb; }
+.section-tabs{ display:flex; gap:12px; margin-bottom:14px; border-bottom:1px solid #e5e7eb; }
+.section-tab{ padding:8px 12px; background:transparent; border:none; border-bottom:2px solid transparent; cursor:pointer; font-weight:700; color:#334155; }
+.section-tab.active{ color:#0f172a; border-bottom-color:#2563eb; }
 .form-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; }
 .form-grid .row { display:flex; flex-direction:column; gap:6px; }
 .form-grid .row.full { grid-column: 1 / -1; }
@@ -665,8 +759,12 @@ async function doImportNew(){
 .builder { border-top:1px solid #e2e8f0; padding-top:12px; margin-bottom:12px; }
 .q-list { display:flex; flex-direction:column; gap:12px; margin-top:12px; }
 .q-item { background:#f8fafc; padding:12px; border-radius:10px; border:1px solid #e2e8f0; }
+.q-list .q-item:nth-child(odd){ background:#f8fafc; border-color:#e2e8f0; }
+.q-list .q-item:nth-child(even){ background:#eef2ff; border-color:#c7d2fe; }
 .q-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .q-index { font-weight:700; }
+.drag-handle{ cursor:grab; user-select:none; font-weight:700; color:#64748b; }
+.q-preview{ color:#334155; font-weight:500; max-width:60ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.8; }
 .opt-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:8px 0; }
 .opt-item { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:6px; }
 .opt-head { display:flex; justify-content:space-between; align-items:center; }

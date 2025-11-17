@@ -3,7 +3,11 @@
     <template #title>Analytics</template>
     <div class="card analytics">
     <h2 style="margin-top:0">Analytics</h2>
-
+    <div class="section-tabs">
+      <button class="section-tab" :class="{ active: section==='tryouts' }" @click="section='tryouts'">Tryout Analytics</button>
+      <button class="section-tab" :class="{ active: section==='sets' }" @click="section='sets'">Sets Overview</button>
+    </div>
+    <div v-if="section==='tryouts'">
     <h3>Tryout Analytics</h3>
     <div class="card" style="padding:12px;">
       <form class="filters" @submit.prevent="applyTs">
@@ -55,7 +59,8 @@
         </div>
       </div>
     </div>
-
+    </div>
+    <div v-if="section==='sets'">
     <h3>Sets Overview</h3>
     <div class="card" style="padding:12px;">
       <div class="table-wrap">
@@ -256,15 +261,17 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
   </AdminLayout>
 </template>
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import AdminLayout from '../../components/admin/AdminLayout.vue'
 import api from '../../api/client'
 import Chart from 'chart.js/auto'
 
+const section = ref('tryouts') // 'tryouts' | 'sets'
 const tryouts = ref([])
 const tryoutId = ref(0)
 const tsQ = ref('')
@@ -343,6 +350,12 @@ let trendChart = null
 let sessionsChart = null
 
 async function loadCharts(){
+  // Only build charts when Sets Overview tab is visible and canvases are mounted
+  if (section.value !== 'sets') return
+  if (!trendRef.value || !sessionsRef.value){
+    await nextTick()
+    if (!trendRef.value || !sessionsRef.value) return
+  }
   // trends
   const tParams = { bucket: bucket.value, start_date: startDate.value, end_date: endDate.value }
   if (setId.value) tParams.set_id = setId.value
@@ -376,6 +389,8 @@ watch([setId, startDate, endDate, bucket], () => {
   t = setTimeout(() => { loadCharts(); loadInsights() }, 400)
 })
 
+// Render charts once Sets tab becomes active
+watch(section, async (val) => { if (val === 'sets') { await nextTick(); loadCharts() } })
 onMounted(loadCharts)
 
 // ---------- Insights tables ----------
@@ -416,6 +431,9 @@ onMounted(loadInsights)
 </script>
 <style scoped>
 .analytics{ max-width:100%; overflow-x:hidden; }
+.section-tabs{ display:flex; gap:12px; margin:4px 0 12px; border-bottom:1px solid #e5e7eb; }
+.section-tab{ padding:8px 12px; background:transparent; border:none; border-bottom:2px solid transparent; cursor:pointer; font-weight:700; color:#334155; }
+.section-tab.active{ color:#0f172a; border-bottom-color:#2563eb; }
 .filters{ display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap; }
 .grid-2{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; align-items:start; }
 .grid-insights{ display:grid; grid-template-columns: 1fr; gap:16px; }

@@ -184,21 +184,21 @@
       <div class="home-head">
         <h2 style="margin:0;">Pilihan Test Gratis Untukmu</h2>
         <div class="chips">
-          <button class="pill" :class="{ active: selectedCategoryId === null }" @click="selectCategory(null)">All Program</button>
-          <button v-for="c in headCategories" :key="c.id" class="pill outline" :class="{ active: selectedCategoryId === c.id }" @click="selectCategory(c.id)">{{ c.name }}</button>
-        </div>
-        <div class="search-sort">
-          <input v-model="homeSearch" class="input search" type="text" placeholder="Cari set..." />
-          <select v-model="homeSort" class="input">
-            <option value="recent">Terbaru</option>
-            <option value="oldest">Terdahulu</option>
-            <option value="az">Judul (A-Z)</option>
-            <option value="za">Judul (Z-A)</option>
-          </select>
+          <button v-for="c in headCategories" :key="c.id" class="pill outline" :class="{ active: selectedCategoryId === c.id }" :title="c.name" @click="selectCategory(c.id)"><span class="pill-label">{{ c.name }}</span></button>
         </div>
       </div>
 
-      <div class="grid cols-4 grid-spacious" style="margin-top:18px;">
+      <div class="program-panel">
+      <div class="search-sort">
+        <input v-model="homeSearch" class="input search" type="text" placeholder="Cari set..." />
+        <select v-model="homeSort" class="input">
+          <option value="recent">Terbaru</option>
+          <option value="oldest">Terdahulu</option>
+          <option value="az">Judul (A-Z)</option>
+          <option value="za">Judul (Z-A)</option>
+        </select>
+      </div>
+      <div class="grid cols-4 grid-spacious" style="margin-top:6px;">
         <div v-for="item in homeDisplayed" :key="item.set.id" class="set-card">
           <span class="color-dot" :style="{ background: bandColor(item.category.name) }"></span>
           <span class="plan-badge" :class="(item.set.access_level||'free')==='paid' ? 'paid' : 'free'">
@@ -227,6 +227,7 @@
       </div>
       <div class="see-all-wrap">
         <router-link to="/categories"><button class="see-all-btn orange">Lihat semua</button></router-link>
+      </div>
       </div>
     </section>
     <!-- FAQ Section -->
@@ -289,16 +290,12 @@ const whatsLink = buildWaLink('Halo Admin, saya ingin upgrade akun premium.')
 // Featured tryouts (latest 3)
 const tryoutsLatest = ref([])
 const premiumImg = ref('https://medexam-assets-prod.sgp1.cdn.digitaloceanspaces.com/uploads/Gemini_Generated_Image_p2452ep2452ep245.png')
-// multi-open accordion; explicit refs per step
-const open1 = ref(false)
-const open2 = ref(false)
-const open3 = ref(false)
-function toggleStep(i){
-  if (i===1) open1.value = !open1.value
-  else if (i===2) open2.value = !open2.value
-  else if (i===3) open3.value = !open3.value
-}
-function isOpen(i){ return i===1 ? open1.value : i===2 ? open2.value : open3.value }
+// Steps are always expanded; keep stubs for existing template bindings
+const open1 = ref(true)
+const open2 = ref(true)
+const open3 = ref(true)
+function toggleStep(i){ /* no-op: always expanded */ }
+function isOpen(i){ return true }
 const categories = ref([])
 const headCategories = computed(() => categories.value.filter(c => !c.parent_id))
 const headHero = computed(() => {
@@ -311,7 +308,7 @@ const headHero = computed(() => {
 // Zoom slider state
 const zoomItems = ref([])
 const zoomIndex = ref(0)
-const zoomPerPage = ref(3) // desktop default
+const zoomPerPage = ref(4) // desktop default
 const zoomCards = computed(() => {
   const first10 = (zoomItems.value || []).slice(0, 10)
   const cards = first10.map(z => ({ type: 'item', data: z }))
@@ -365,11 +362,14 @@ const faqs = ref([
 onMounted(async () => {
   const { data: cats } = await api.get('/categories/')
   categories.value = cats
+  // default to first head category when available
+  const firstHead = (cats || []).find(c => !c.parent_id)
+  if (firstHead) selectedCategoryId.value = firstHead.id
   // fetch latest active tryouts (non-paginated list includes sets_count & duration_minutes)
   try {
     const { data: ts } = await api.get('/tryouts/', { params: { status: 'active' } })
     const sorted = [...(Array.isArray(ts) ? ts : [])].sort((a,b)=> String(b.created_at||'').localeCompare(String(a.created_at||'')))
-    tryoutsLatest.value = sorted.slice(0,3)
+    tryoutsLatest.value = sorted.slice(0,4)
   } catch {}
   // load zoom discussions
   try{
@@ -398,6 +398,18 @@ function selectCategory(id){
   rebuildGrid()
 }
 
+// Shorten long category names on small screens with explicit '...'
+function shortName(name){
+  const s = String(name || '')
+  try{
+    if (window && window.innerWidth <= 640){
+      const max = 18
+      return s.length > max ? (s.slice(0, max-3) + '...') : s
+    }
+  }catch{}
+  return s
+}
+
 function brandFor(catId){
   return branding.value[String(catId)] || { icon: '', icon_url: '' }
 }
@@ -421,7 +433,8 @@ function updateZoomPerPage(){
   const w = window.innerWidth
   if (w < 900) zoomPerPage.value = 1
   else if (w < 1200) zoomPerPage.value = 2
-  else zoomPerPage.value = 3
+  else if (w < 1500) zoomPerPage.value = 3
+  else zoomPerPage.value = 4
   const maxIndex = Math.max(0, zoomPages.value.length - 1)
   if (zoomIndex.value > maxIndex) zoomIndex.value = maxIndex
 }
@@ -707,11 +720,11 @@ function descPreview(t){
 .zoom-slider .track{ display:flex; transition: transform .35s ease; }
 .zoom-slider .slide{ min-width:100%; padding:14px 8px; }
 .zgrid{ display:grid; gap:12px; align-items:stretch; width:100%; grid-template-columns: repeat(var(--cols, 3), 1fr); }
-.zoom-card{ background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.05); width:100%; }
-.zoom-card .thumb{ width:100%; height: 160px; background:#f1f5f9; }
+.zoom-card{ background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.05); width:100%; }
+.zoom-card .thumb{ width:100%; height: 120px; background:#f1f5f9; }
 .zoom-card .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
-@media (max-width: 900px){ .zoom-card .thumb{ height: 140px; } }
-.zoom-card .inner{ padding:12px; display:flex; flex-direction:column; gap:8px; }
+@media (max-width: 900px){ .zoom-card .thumb{ height: 100px; } }
+.zoom-card .inner{ padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
 .zoom-card .row.top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .zoom-card .title{ font-weight:800; color:#0f172a; line-height:1.4; }
 .zoom-card .presenter{ font-weight:700; color:#334155; font-size:14px; line-height:1.5; }
@@ -727,6 +740,7 @@ function descPreview(t){
 
 /* Header controls layout */
 .home-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.chips{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid #e5e7eb; padding-bottom:6px; }
 
 /* Pay steps */
 .pay-steps{ margin:18px 0; padding:16px 16px 14px; background:linear-gradient(180deg,#eaf6ff,#f5fbff); border:1px solid #cfe7ff; border-radius:16px; box-shadow: 0 14px 34px rgba(30,64,175,0.08), 0 2px 6px rgba(2,6,23,0.04); }
@@ -738,22 +752,22 @@ function descPreview(t){
 .pay-hero-svg{ width:100%; height:auto; display:block; border-radius:12px; }
 /* Vertical accordion style */
 .steps{ display:grid; grid-template-columns: 1fr; gap:10px; align-items:stretch; }
-.step{ position:relative; background: rgba(15,23,42,0.06); border:1px solid rgba(2,6,23,0.10); border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease, background-color .2s ease; box-shadow: 0 6px 16px rgba(2,6,23,0.06); }
-.step:hover{ box-shadow: 0 14px 28px rgba(2,6,23,0.12); border-color: rgba(2,6,23,0.18); transform: translateY(-1px); background: rgba(15,23,42,0.08); }
+.step{ position:relative; background: rgba(255,255,255,0.5); border:1px solid rgba(2,6,23,0.10); border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease, background-color .2s ease; box-shadow: 0 6px 16px rgba(2,6,23,0.06); }
+.step:hover{ box-shadow: 0 14px 28px rgba(2,6,23,0.12); border-color: rgba(2,6,23,0.18); transform: translateY(-1px); background: rgba(255,255,255,0.6); }
 .illo{ display:none; }
 .step-head{ font-weight:900; color:#0f172a; padding-right:28px; }
 .step-desc{ color:#334155; line-height:1.7; font-size:14px; }
 /* collapsible behavior */
-.step.collapsible{ cursor:pointer; user-select:none; }
+.step.collapsible{ cursor:default; user-select:text; }
 .step-toggle{ display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; background:transparent; border:0; padding:0; margin:0; text-align:left; cursor:pointer; }
 .step-toggle:focus{ outline:2px solid #93c5fd; outline-offset:2px; border-radius:8px; }
 .step-desc-wrap{ overflow:hidden; }
-.expand-enter-active, .expand-leave-active{ transition: max-height .25s ease, opacity .2s ease; }
-.expand-enter-from, .expand-leave-to{ max-height: 0; opacity: 0; }
-.expand-enter-to, .expand-leave-from{ max-height: 240px; opacity: 1; }
+.expand-enter-active, .expand-leave-active{ transition: opacity .2s ease; }
+.expand-enter-from, .expand-leave-to{ opacity: 0; }
+.expand-enter-to, .expand-leave-from{ opacity: 1; }
 /* right-edge arrow indicator at card edge */
-.step.collapsible::after{ content: '▾'; position:absolute; right: 12px; top: 20px; transform: translateY(-50%) rotate(0deg); font-size:16px; color:#0f172a; opacity:.7; transition: transform .2s ease, opacity .2s ease; pointer-events:none; }
-.step.collapsible.open::after{ transform: translateY(-50%) rotate(180deg); opacity:1; }
+.step.collapsible::after{ content: ''; }
+.step.collapsible.open::after{ content: ''; }
 .pay-cta{ display:flex; justify-content:center; margin-top:12px; }
 .btn.upgrade{ background:linear-gradient(90deg,#f97316,#fb923c); color:#fff; border:1px solid #fb923c; padding:12px 18px; border-radius:999px; text-decoration:none; font-weight:900; box-shadow: 0 12px 22px rgba(249,115,22,.25); }
 .btn.upgrade:hover{ filter:brightness(.97); }
@@ -775,7 +789,8 @@ function descPreview(t){
 .featured-tryouts{ margin: 14px 0; background:linear-gradient(180deg,#f8fbff,#ffffff); border:1px solid #e5efff; border-radius:16px; padding:14px; box-shadow: 0 10px 28px rgba(37,99,235,0.06); }
 .ft-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 4px; }
 .ft-title-lg{ font-size:24px; line-height:1.25; font-weight:900; letter-spacing:.2px; }
-.ft-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-top:12px; }
+.ft-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:14px; margin-top:12px; }
+@media (max-width: 1200px){ .ft-grid{ grid-template-columns: repeat(3,1fr); } }
 @media (max-width: 900px){ .ft-grid{ grid-template-columns: repeat(2,1fr); } }
 @media (max-width: 640px){ .ft-grid{ grid-template-columns: 1fr; } }
 .ft-card{ background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px; box-shadow:0 6px 18px rgba(2,6,23,0.06); transition: box-shadow .2s ease, transform .2s ease; }
@@ -808,13 +823,42 @@ function descPreview(t){
 .grid{ display:block; }
 .grid:not(.cols-4) > * + *{ margin-top:16px; }
 @media (min-width: 900px){ .grid:not(.cols-4) > * + *{ margin-top:24px; } }
-.pill { padding: 8px 14px; border-radius: 999px; border: 1px solid #3b82f6; background:#3b82f6; color:white; font-weight:600; }
-.pill.outline { background:white; color:#2563eb; border-color:#2563eb; }
-.pill.active { background:#2563eb; color:white; }
+.pill { display:inline-flex; align-items:center; height:40px; padding: 0 14px; border-radius: 10px 10px 0 0; border: 1.5px solid #2563eb; border-bottom: none; background:transparent; color:#2563eb; font-weight:800; line-height:1; transition: background .15s ease, color .15s ease, box-shadow .15s ease; position:relative; top:0; }
+.pill.outline { background:transparent; color:#2563eb; border-color:#2563eb; border-bottom: none; }
+.pill:hover{ background: rgba(37,99,235,0.06); }
+.pill.active { background:#f6f9ff; color:#0f172a; border-color:#2563eb; border-bottom: none; box-shadow: 0 -1px 0 #f6f9ff, 0 1px 0 rgba(2,6,23,0.02); }
 @media (max-width: 640px){
-  .pill{ padding:6px 10px; font-size:12px; }
+  .pill{ height:auto; padding:6px 10px; font-size:12px; top:0; }
   .pill.outline{ font-size:12px; }
 }
+
+/* Mobile: keep folder tabs look with horizontal scroll, prevent wrapping */
+@media (max-width: 640px){
+  .chips{ flex-wrap: nowrap; overflow-x: auto; gap:8px; padding-bottom:6px; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+  .chips::-webkit-scrollbar{ display:none; }
+  .pill{ scroll-snap-align: start; height:auto; padding:6px 10px; }
+  .pill .pill-label{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; white-space:normal; max-width: 70vw; line-height:1.2; }
+  .program-panel{ padding:10px; border-radius:10px; }
+  .program-panel .search-sort{ justify-content:stretch; }
+  .program-panel .search-sort .input.search{ flex:1; width:auto; max-width:none; }
+  .program-panel .search-sort select.input{ width:auto; }
+  /* ensure the instance inside .home-head also no-wrap */
+  .home-head .chips{ flex-wrap: nowrap !important; overflow-x:auto; gap:8px; }
+}
+
+/* Folder content panel under tabs */
+.program-panel{
+  background:#f6f9ff;
+  border:1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-top:-1px; /* tuck under tab bottom border */
+  padding:12px;
+}
+
+/* Search/sort alignment inside panel */
+.program-panel .search-sort{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-bottom:8px; }
+.program-panel .search-sort .input.search{ width: 220px; max-width: 60vw; }
+.program-panel .search-sort select.input{ width: 140px; }
 
 .set-card { position:relative; background:white; border-radius:14px; box-shadow: 0 4px 10px rgba(2,6,23,0.06), 0 1px 2px rgba(2,6,23,0.04); border:1px solid #e5e7eb; overflow:hidden; display:flex; flex-direction:column; transition: box-shadow .2s ease, transform .2s ease; height:100%; min-height: 230px; margin-bottom: 4px; }
 .set-card:hover{ box-shadow: 0 10px 24px rgba(2,6,23,0.10), 0 2px 6px rgba(2,6,23,0.06); }

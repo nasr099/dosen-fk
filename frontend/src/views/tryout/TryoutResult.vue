@@ -7,7 +7,7 @@
     <!-- Summary panels -->
     <div v-if="summary" class="grid-2">
       <div class="panel">
-        <div class="panel-title">Objective (MCQ + Multi)</div>
+        <div class="panel-title">Objective (MCQ + Multi + Short)</div>
         <div class="donut-wrap">
           <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="Objective score">
             <circle class="ring" cx="21" cy="21" r="16" />
@@ -51,7 +51,7 @@
       </thead>
       <tbody>
         <template v-for="r in rows" :key="'set-'+r.order_index">
-          <!-- Objective row (MCQ + MAQ) -->
+          <!-- Objective row (MCQ + Multi + Short) -->
           <tr>
             <td>{{ r.title || r.set_title || (r.set && r.set.title) || ('#' + r.order_index) }}</td>
             <td>Objective</td>

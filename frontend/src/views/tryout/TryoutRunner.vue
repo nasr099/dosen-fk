@@ -40,35 +40,48 @@
               </div>
             </div>
             <img v-if="stemImg(q)" :src="resolveImg(stemImg(q))" alt="question image" class="q-img" @click="openLightbox(resolveImg(stemImg(q)))" />
-            <div class="qtext"><span v-html="renderHTML(stemText(q))"></span></div>
-            <div class="q-divider"></div>
-            <div class="answers-label">Jawaban</div>
-            <template v-if="typeOf(q)==='essay'">
-              <textarea class="essay-input" v-model="localAnswers[q.id]" @input="onEssayInput(q.id)" placeholder="Ketik jawaban Anda di sini..."></textarea>
-            </template>
-            <template v-else-if="typeOf(q)==='multi'">
-              <div class="options grid-2">
-                <label v-for="opt in optionLetters(q)" :key="opt" class="opt" :class="{ selected: (localAnswers[q.id]||[]).includes(opt) }">
-                  <input class="radio" type="checkbox" :name="`q_${q.id}_${opt}`" :value="opt" :checked="(localAnswers[q.id]||[]).includes(opt)" @change="toggleMulti(q.id,opt,$event)" />
-                  <span class="letter">{{ opt }}</span>
-                  <span class="opt-content">
-                    <span class="opt-text" v-if="optText(q,opt)" v-html="renderHTML(optText(q,opt))"></span>
-                    <img v-if="optImg(q,opt)" :src="resolveImg(optImg(q,opt))" :alt="`option ${opt} image`" class="opt-img" @click="openLightbox(resolveImg(optImg(q,opt)))" />
-                  </span>
-                </label>
+            <template v-if="typeOf(q)==='short'">
+              <div class="qtext short-row">
+                <span class="short-stem" v-html="renderHTML(stemText(q))"></span>
+                <div class="short-side">
+                  <input class="short-input" v-model="localAnswers[q.id]" @input="onShortInput(q.id)" placeholder="Jawaban singkat…" />
+                  <div class="short-hint">Do not include units unless required.</div>
+                </div>
               </div>
             </template>
             <template v-else>
-              <div class="options grid-2">
-                <label v-for="opt in optionLetters(q)" :key="opt" class="opt" :class="{ selected: localAnswers[q.id]===opt }">
-                  <input class="radio" type="radio" :name="`q_${q.id}`" :value="opt" :checked="localAnswers[q.id]===opt" @change="choose(q.id,opt)" />
-                  <span class="letter">{{ opt }}</span>
-                  <span class="opt-content">
-                    <span class="opt-text" v-if="optText(q,opt)" v-html="renderHTML(optText(q,opt))"></span>
-                    <img v-if="optImg(q,opt)" :src="resolveImg(optImg(q,opt))" :alt="`option ${opt} image`" class="opt-img" @click="openLightbox(resolveImg(optImg(q,opt)))" />
-                  </span>
-                </label>
-              </div>
+              <div class="qtext"><span v-html="renderHTML(stemText(q))"></span></div>
+            </template>
+            <div class="q-divider"></div>
+            <template v-if="typeOf(q)!=='short'">
+              <div class="answers-label">Jawaban</div>
+              <template v-if="typeOf(q)==='essay'">
+                <textarea class="essay-input" v-model="localAnswers[q.id]" @input="onEssayInput(q.id)" placeholder="Ketik jawaban Anda di sini..."></textarea>
+              </template>
+              <template v-else-if="typeOf(q)==='multi'">
+                <div class="options grid-2">
+                  <label v-for="opt in optionLetters(q)" :key="opt" class="opt" :class="{ selected: (localAnswers[q.id]||[]).includes(opt) }">
+                    <input class="radio" type="checkbox" :name="`q_${q.id}_${opt}`" :value="opt" :checked="(localAnswers[q.id]||[]).includes(opt)" @change="toggleMulti(q.id,opt,$event)" />
+                    <span class="letter">{{ opt }}</span>
+                    <span class="opt-content">
+                      <span class="opt-text" v-if="optText(q,opt)" v-html="renderHTML(optText(q,opt))"></span>
+                      <img v-if="optImg(q,opt)" :src="resolveImg(optImg(q,opt))" :alt="`option ${opt} image`" class="opt-img" @click="openLightbox(resolveImg(optImg(q,opt)))" />
+                    </span>
+                  </label>
+                </div>
+              </template>
+              <template v-else>
+                <div class="options grid-2">
+                  <label v-for="opt in optionLetters(q)" :key="opt" class="opt" :class="{ selected: localAnswers[q.id]===opt }">
+                    <input class="radio" type="radio" :name="`q_${q.id}`" :value="opt" :checked="localAnswers[q.id]===opt" @change="choose(q.id,opt)" />
+                    <span class="letter">{{ opt }}</span>
+                    <span class="opt-content">
+                      <span class="opt-text" v-if="optText(q,opt)" v-html="renderHTML(optText(q,opt))"></span>
+                      <img v-if="optImg(q,opt)" :src="resolveImg(optImg(q,opt))" :alt="`option ${opt} image`" class="opt-img" @click="openLightbox(resolveImg(optImg(q,opt)))" />
+                    </span>
+                  </label>
+                </div>
+              </template>
             </template>
           </div>
         </div>
@@ -375,6 +388,10 @@ async function onEssayInput(qid){
   const val = String(localAnswers.value[qid] || '')
   try { await api.post(`/tryouts/set-sessions/${tssId.value}/answer`, null, { params: { question_id: qid, essay_answer: val } }) } catch(e){ if(e?.response?.status===409){ handleDeviceMismatch(e); return } throw e }
 }
+async function onShortInput(qid){
+  const val = String(localAnswers.value[qid] || '')
+  try { await api.post(`/tryouts/set-sessions/${tssId.value}/answer`, null, { params: { question_id: qid, selected_answer: val } }) } catch(e){ if(e?.response?.status===409){ handleDeviceMismatch(e); return } throw e }
+}
 
 async function finishNow(){
   try{
@@ -610,4 +627,12 @@ function gotoLobby(){ router.push(`/tryout/${setMeta.value?.tryout_id || ''}`) }
 /* Lightbox */
 .lightbox{ position:fixed; inset:0; background: rgba(2,6,23,0.8); display:flex; align-items:center; justify-content:center; z-index: 1200; }
 .lightbox-img{ max-width:92vw; max-height:92vh; object-fit:contain; border-radius:10px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+
+/* Short answer inline layout (match Exam.vue) */
+.short-row{ display:flex; gap:12px; align-items:flex-start; }
+.short-row .short-stem{ flex: 1 1 auto; }
+.short-side{ display:flex; flex-direction:column; gap:6px; width: min(280px, 40%); }
+.short-input{ width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px; font: inherit; }
+.short-hint{ color:#64748b; font-size:12px; }
+@media (max-width: 900px){ .short-row{ flex-direction:column; } .short-side{ width:100%; } }
 </style>

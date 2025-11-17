@@ -163,6 +163,7 @@ def download_import_template():
     ws.append(['mcq','What is 2+2?','', '3','', '4','', '5','', '6','', '','', 'B','Basic arithmetic'])
     ws.append(['multi','Select primes','', '2','', '3','', '4','', '5','', '6','', 'A,B,D',''])
     ws.append(['essay','Explain the cardiac cycle.','', '','','','','','','','','','', ''])
+    ws.append(['short','Abbreviation of Glycated Hemoglobin?','', '','','','','','','','','','', 'HbA1c|Glycated hemoglobin'])
 
     from io import BytesIO
     buf = BytesIO()
@@ -232,6 +233,7 @@ def list_sets_summary(
         func.sum(case((q.question_type == 'mcq', 1), else_=0)).label('mcq_count'),
         func.sum(case((q.question_type == 'multi', 1), else_=0)).label('multi_count'),
         func.sum(case((q.question_type == 'essay', 1), else_=0)).label('essay_count'),
+        func.sum(case((q.question_type == 'short', 1), else_=0)).label('short_count'),
     ).outerjoin(q, q.question_set_id == qs.id)
     # Active filter
     if is_active is not None:
@@ -264,6 +266,7 @@ def list_sets_summary(
             'mcq_count': int(getattr(r, 'mcq_count', 0) or 0),
             'multi_count': int(getattr(r, 'multi_count', 0) or 0),
             'essay_count': int(getattr(r, 'essay_count', 0) or 0),
+            'short_count': int(getattr(r, 'short_count', 0) or 0),
         }
         for r in rows
     ]
@@ -335,7 +338,7 @@ def import_questions_from_xlsx(
 ):
     """
     Import questions from an .xlsx file. Expected columns (case-insensitive headers):
-    - type: mcq | multi | essay
+    - type: mcq | multi | essay | short
     - question_text, question_img (optional)
     - option_a_text, option_a_img (optional)
     - option_b_text, option_b_img (optional)
@@ -441,7 +444,7 @@ def import_questions_from_xlsx(
     # start at row 2 (index 1)
     for idx, row in enumerate(rows[1:], start=2):
         qtype = (get(row, 'type') or 'mcq').lower().strip()
-        if qtype not in ('mcq','multi','essay'):
+        if qtype not in ('mcq','multi','essay','short'):
             errors.append(f"Row {idx}: invalid type '{qtype}'")
             continue
         qtext = get(row, 'question_text')
@@ -517,6 +520,11 @@ def import_questions_from_xlsx(
                 errors.append(f"Row {idx}: correct_answer must contain letters A-E for multi")
                 continue
             correct_answer = ','.join(sorted(set(parts)))
+        elif qtype == 'short':
+            # free text; keep as is (case-insensitive match on runner). Allow multiple with '|'
+            if not correct_answer:
+                errors.append(f"Row {idx}: correct_answer required for short answer")
+                continue
         else:
             # essay: blank correct
             correct_answer = ''

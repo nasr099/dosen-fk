@@ -1,8 +1,13 @@
 <template>
   <AdminLayout>
     <template #title>Tryouts</template>
+    <div class="section-tabs">
+      <button class="section-tab" :class="{ active: section==='category' }" @click="section='category'">Add Tryout Category</button>
+      <button class="section-tab" :class="{ active: section==='editor' }" @click="section='editor'">Create/Edit Tryout</button>
+      <button class="section-tab" :class="{ active: section==='list' }" @click="section='list'">Existing Tryouts</button>
+    </div>
     <!-- Separate section: Add Category -->
-    <div class="card">
+    <div class="card" v-if="section==='category'">
       <h2 style="margin-top:0">Add Tryout Category</h2>
       <div class="cat-add">
         <label>Add New Category</label>
@@ -41,7 +46,7 @@
       </div>
     </div>
 
-    <div class="card" style="margin-top: 12px;">
+    <div class="card" style="margin-top: 12px;" v-if="section==='editor'">
       <h2 style="margin-top:0">Create/Edit Tryout</h2>
 
       <div class="form-grid">
@@ -89,13 +94,13 @@
 
       <div style="display:flex; gap:8px; margin-top:12px;">
         <button class="btn" :disabled="!canSave" @click="save">Save Tryout</button>
-        <button class="btn secondary" @click="reset">Reset</button>
+        <button class="btn secondary" @click="reset">Cancel</button>
       </div>
 
     </div>
 
     <!-- Existing Tryouts (separate section) -->
-    <div class="card" style="margin-top: 16px;">
+    <div class="card" style="margin-top: 16px;" v-if="section==='list'">
       <h2 style="margin-top:0">Existing Tryouts</h2>
       <table class="table">
         <thead>
@@ -106,7 +111,7 @@
             <td>{{ t.title }}</td>
             <td>{{ t.category || 'Uncategorized' }}</td>
             <td>{{ t.is_active ? 'Active' : 'Inactive' }}</td>
-            <td>{{ (t.sets||[]).length || '-' }}</td>
+            <td>{{ (typeof t.sets_count === 'number') ? t.sets_count : '-' }}</td>
             <td>
               <div style="display:flex; gap:6px; justify-content:flex-start;">
                 <button class="btn tiny" @click="editTryout(t.id)">Edit</button>
@@ -126,6 +131,7 @@ import api from '../../api/client'
 import RichTextEditor from '../../components/RichTextEditor.vue'
 
 const categories = ref([])
+const section = ref('editor') // 'category' | 'editor' | 'list'
 const tryoutCategories = ref([]) // names only (for select)
 const tryoutCatsFull = ref([])   // [{id,name}] for management
 const newTryoutCat = ref('')
@@ -196,6 +202,7 @@ async function editTryout(id){
       intermission_text: s.intermission_text || ''
     }))
   }
+  section.value = 'editor'
 }
 
 async function createTryoutCategory(){
@@ -253,6 +260,9 @@ async function doToggleActive(t){
 onMounted(load)
 </script>
 <style scoped>
+.section-tabs{ display:flex; gap:12px; margin:4px 0 12px; border-bottom:1px solid #e5e7eb; }
+.section-tab{ padding:8px 12px; background:transparent; border:none; border-bottom:2px solid transparent; cursor:pointer; font-weight:700; color:#334155; }
+.section-tab.active{ color:#0f172a; border-bottom-color:#2563eb; }
 .form-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:12px; }
 .form-grid .row{ display:flex; flex-direction:column; gap:6px; }
 .form-grid .row.full{ grid-column: 1 / -1; }

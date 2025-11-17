@@ -35,10 +35,22 @@
             class="q-img"
             @click="openLightbox(resolveImg(parseRich(q.question_text).img))"
           />
-          <div class="qtext">
-            <span v-if="parseRich(q.question_text).text" v-html="renderHTML(parseRich(q.question_text).text)"></span>
-          </div>
+          <template v-if="(q.question_type||'mcq') === 'short'">
+            <div class="qtext short-row">
+              <span class="short-stem" v-if="parseRich(q.question_text).text" v-html="renderHTML(parseRich(q.question_text).text)"></span>
+              <div class="short-side">
+                <input class="short-input" v-model="answers[q.id]" @input="markAnswered(q.id)" placeholder="Jawaban singkat…" />
+                <div class="short-hint">Do not include units unless required.</div>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="qtext">
+              <span v-if="parseRich(q.question_text).text" v-html="renderHTML(parseRich(q.question_text).text)"></span>
+            </div>
+          </template>
           <div class="q-divider"></div>
+          <template v-if="(q.question_type||'mcq') !== 'short'">
           <div class="answers-label">Jawaban</div>
           <template v-if="(q.question_type||'mcq') === 'essay'">
             <textarea class="essay-input" v-model="answers[q.id]" @input="markAnswered(q.id)" placeholder="Ketik jawaban Anda di sini..."></textarea>
@@ -76,6 +88,7 @@
               </span>
             </label>
           </div>
+          </template>
           </div>
         </div>
         <div class="nav-row">
@@ -686,6 +699,13 @@ onMounted(async () => {
 .modal-head{ font-weight:800; font-size:18px; padding:16px; border-bottom:1px solid #e2e8f0; color:#0f172a; }
 .modal-body{ padding:16px; color:#334155; line-height:1.7; }
 .modal-actions{ padding:12px 16px 16px; display:flex; gap:8px; justify-content:flex-end; }
+/* Short answer inline layout */
+.short-row{ display:flex; gap:12px; align-items:flex-start; }
+.short-row .short-stem{ flex: 1 1 auto; }
+.short-side{ display:flex; flex-direction:column; gap:6px; width: min(280px, 40%); }
+.short-input{ width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px; font: inherit; }
+.short-hint{ color:#64748b; font-size:12px; }
+@media (max-width: 900px){ .short-row{ flex-direction:column; } .short-side{ width:100%; } }
 @media (max-width: 900px){
   .exam-body{ grid-template-columns: 1fr; }
   .grid.compact{ grid-template-columns: repeat(5, 1fr); }

@@ -7,7 +7,12 @@
       <button class="btn">Add Category</button>
     </form>
 
-    <div class="section head-section">
+    <div class="section-tabs">
+      <button class="section-tab" :class="{ active: section==='heads' }" @click="section='heads'">Head Categories</button>
+      <button class="section-tab" :class="{ active: section==='subs' }" @click="section='subs'">Sub Categories</button>
+    </div>
+
+    <div class="section head-section" v-if="section==='heads'">
     <h3 class="section-title">Head Categories</h3>
     <div class="section-toolbar">
       <input class="input" v-model="headSearch" placeholder="Search head categories…" />
@@ -84,7 +89,7 @@
     </div>
     <!-- close head-section -->
 
-    <div class="section sub-section">
+    <div class="section sub-section" v-if="section==='subs'">
     <h3 class="section-title with-actions" style="margin-top:16px;">
       <span>Sub Categories</span>
       <span class="row-actions">
@@ -199,6 +204,7 @@ import { onMounted, ref, computed } from 'vue'
 import api from '../../api/client'
 import AdminLayout from '../../components/admin/AdminLayout.vue'
 const categories = ref([])
+const section = ref('heads') // 'heads' | 'subs'
 const form = ref({ name: '', description: '' })
 const setsByCat = ref({})
 const branding = ref({})
@@ -394,6 +400,9 @@ function paginatedSets(id){
 </script>
 
 <style scoped>
+.section-tabs{ display:flex; gap:12px; margin:4px 0 12px; border-bottom:1px solid #e5e7eb; }
+.section-tab{ padding:8px 12px; background:transparent; border:none; border-bottom:2px solid transparent; cursor:pointer; font-weight:700; color:#334155; }
+.section-tab.active{ color:#0f172a; border-bottom-color:#2563eb; }
 .view-toggle{ display:flex; justify-content:flex-end; margin-bottom:8px; }
 .cat-table{ width:100%; border-collapse:separate; border-spacing:0; margin-top:8px; table-layout: fixed; }
 .cat-table thead th{ position:sticky; top:0; z-index:1; background:#fff; border-bottom:2px solid #e2e8f0; }

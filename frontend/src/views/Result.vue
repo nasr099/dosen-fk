@@ -3,7 +3,7 @@
     <h2 class="result-title">Result</h2>
     <div class="grid-2">
       <div class="panel">
-        <div class="panel-title">Objective (MCQ + Multi)</div>
+        <div class="panel-title">Objective (MCQ + Multi + Short)</div>
         <div class="donut-wrap">
           <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="Objective score">
             <circle class="ring" cx="21" cy="21" r="16" />
@@ -139,11 +139,11 @@ const essayAvg = computed(() => Math.round(result.value?.essay_avg_score ?? 0))
 // Objective counters (based on backend payload)
 const objectiveAnswered = computed(() => {
   const arr = result.value?.answers || []
-  return arr.filter(a => (a.question_type==='mcq' || a.question_type==='multi') && (a.selected_answer||'').trim()).length
+  return arr.filter(a => (a.question_type==='mcq' || a.question_type==='multi' || a.question_type==='short') && (a.selected_answer||'').trim()).length
 })
 const objectiveIncorrect = computed(() => {
   const arr = result.value?.answers || []
-  return arr.filter(a => (a.question_type==='mcq' || a.question_type==='multi') && (a.selected_answer||'').trim() && !a.is_correct).length
+  return arr.filter(a => (a.question_type==='mcq' || a.question_type==='multi' || a.question_type==='short') && (a.selected_answer||'').trim() && !a.is_correct).length
 })
 const objectiveUnanswered = computed(() => Math.max(0, (result.value?.total_questions||0) - objectiveAnswered.value))
 

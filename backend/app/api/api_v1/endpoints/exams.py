@@ -99,7 +99,7 @@ def submit_exam(
 
     correct = 0
     answers_detail = []
-    objective_total = 0  # mcq + multi
+    objective_total = 0  # mcq + multi + short
     essay_ids = []
 
     # Build map of submitted answers for quick lookup
@@ -125,6 +125,15 @@ def submit_exam(
             sel = set([(x or '').strip().upper() for x in (selected or '').split(',') if x.strip()])
             cor = set([(x or '').strip().upper() for x in (q.correct_answer or '').split(',') if x.strip()])
             is_correct = (len(cor) > 0) and (sel == cor)
+        elif qtype == 'short':
+            objective_total += 1
+            # Case-insensitive; allow multiple correct answers separated by '|'
+            def _norm(s: str):
+                s = (s or '').strip().lower()
+                return ' '.join(s.split())
+            s = _norm(selected or '')
+            allowed = [_norm(x) for x in (q.correct_answer or '').split('|') if (x or '').strip()]
+            is_correct = bool(allowed) and (s in allowed)
         else:
             # essay does not affect objective score
             pass
@@ -172,20 +181,30 @@ def submit_exam(
     if essay_ids:
         grades = db.query(EssayGradeModel).filter(EssayGradeModel.exam_answer_id.in_(essay_ids)).all()
         scores = [g.score for g in grades if g and g.score is not None]
-        essay_graded_count = len(scores)
-        if scores:
-            essay_avg_score = float(sum(scores)) / len(scores)
+        # Determine which essay answers are blank (no text) to auto-mark incorrect
+        blank_ids = set()
+        for a in answers_db:
+            if a.id in essay_ids:
+                if not (a.selected_answer or '').strip():
+                    blank_ids.add(a.id)
+        # Count blank answers as graded with score 0
+        missing_total = len(blank_ids)
+        essay_graded_count = len(scores) + missing_total
+        if scores or missing_total:
+            essay_avg_score = float(sum(scores)) / float(essay_count) if essay_count else 0.0
         # attach per-answer grade to payloads
         gmap = { g.exam_answer_id: g for g in grades }
         for p in answers_detail:
-            # We need to locate the corresponding answer id; rebuild map from DB
             if p.get('question_type') == 'essay':
-                # find the answer row for this question in this session
+                # locate the answer row for this question in this session
                 ans = db.query(ExamAnswerModel).filter(ExamAnswerModel.exam_session_id == exam.id, ExamAnswerModel.question_id == p['question_id']).first()
                 if ans:
                     g = gmap.get(ans.id)
                     if g:
                         p['essay_grade'] = { 'score': g.score, 'status': g.status, 'notes': g.notes }
+                    elif ans.id in blank_ids:
+                        # Auto-mark blank essays as incorrect (score 0)
+                        p['essay_grade'] = { 'score': 0, 'status': 'incorrect', 'notes': '' }
 
     return ExamResult(
         exam_session_id=exam.id,
@@ -254,12 +273,13 @@ def get_result(session_id: int, db: Session = Depends(get_db), current_user=Depe
     user_is_paid = (getattr(current_user, 'plan', 'free') == 'paid') or getattr(current_user, 'is_admin', False) or getattr(current_user, 'is_teacher', False)
     objective_total = 0
     essay_answer_ids = []
+    empty_essay_answer_ids = []  # answers with no text should be auto-incorrect
     for a in answers_db:
         q = questions.get(a.question_id)
         if not q:
             continue
         qtype = getattr(q, 'question_type', 'mcq') or 'mcq'
-        if qtype in ('mcq','multi'):
+        if qtype in ('mcq','multi','short'):
             objective_total += 1
         payload = {
             "question_id": q.id,
@@ -292,9 +312,16 @@ def get_result(session_id: int, db: Session = Depends(get_db), current_user=Depe
     if essay_answer_ids:
         grades = db.query(EssayGradeModel).filter(EssayGradeModel.exam_answer_id.in_(essay_answer_ids)).all()
         scores = [g.score for g in grades if g and g.score is not None]
-        essay_graded_count = len(scores)
-        if scores:
-            essay_avg_score = float(sum(scores)) / len(scores)
+        # Determine blank essay answers (no text) and auto-mark as incorrect
+        blank_ids = set()
+        for a in answers_db:
+            if a.id in essay_answer_ids:
+                if not (a.selected_answer or '').strip():
+                    blank_ids.add(a.id)
+        # Count blanks as graded with score 0
+        essay_graded_count = len(scores) + len(blank_ids)
+        if scores or blank_ids:
+            essay_avg_score = float(sum(scores)) / float(essay_count) if essay_count else 0.0
         gmap = { g.exam_answer_id: g for g in grades }
         for p in answers_detail:
             if p.get('question_type') == 'essay':
@@ -304,6 +331,8 @@ def get_result(session_id: int, db: Session = Depends(get_db), current_user=Depe
                     g = gmap.get(ans.id)
                     if g:
                         p['essay_grade'] = { 'score': g.score, 'status': g.status, 'notes': g.notes }
+                    elif ans.id in blank_ids:
+                        p['essay_grade'] = { 'score': 0, 'status': 'incorrect', 'notes': '' }
 
     return ExamResult(
         exam_session_id=exam.id,
