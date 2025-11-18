@@ -32,6 +32,7 @@
               <router-link to="/admin/essays">Essays Grading</router-link>
               <router-link to="/admin/analytics">Analytics</router-link>
               <router-link to="/admin/llm">Questions Generator</router-link>
+              <router-link to="/admin/llm-scan">Question Scanner</router-link>
               <router-link to="/admin/promos">Promos</router-link>
               <router-link to="/admin/zoom">Zoom Discussions</router-link>
               <router-link to="/admin/team">Team</router-link>
@@ -43,6 +44,7 @@
               <router-link to="/admin/questions">Questions</router-link>
               <router-link to="/admin/tryouts">Tryouts</router-link>
               <router-link to="/admin/llm">Questions Generator</router-link>
+              <router-link to="/admin/llm-scan">Question Scanner</router-link>
               <router-link to="/admin/essays">Essays Grading</router-link>
               <router-link to="/admin/zoom">Zoom Discussions</router-link>
               <router-link to="/admin/blog">Blog</router-link>
@@ -81,6 +83,7 @@
               <router-link to="/admin/essays" @click="closeMobile">Essays Grading</router-link>
               <router-link to="/admin/analytics" @click="closeMobile">Analytics</router-link>
               <router-link to="/admin/llm" @click="closeMobile">Questions Generator</router-link>
+              <router-link to="/admin/llm-scan" @click="closeMobile">Question Scanner</router-link>
               <router-link to="/admin/promos" @click="closeMobile">Promos</router-link>
               <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>
               <router-link to="/admin/team" @click="closeMobile">Team</router-link>
@@ -92,6 +95,7 @@
               <router-link to="/admin/questions" @click="closeMobile">Questions</router-link>
               <router-link to="/admin/tryouts" @click="closeMobile">Tryouts</router-link>
               <router-link to="/admin/llm" @click="closeMobile">Questions Generator</router-link>
+              <router-link to="/admin/llm-scan" @click="closeMobile">Question Scanner</router-link>
               <router-link to="/admin/essays" @click="closeMobile">Essays Grading</router-link>
               <router-link to="/admin/zoom" @click="closeMobile">Zoom Discussions</router-link>
               <router-link to="/admin/blog" @click="closeMobile">Blog</router-link>

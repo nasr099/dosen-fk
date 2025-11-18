@@ -3,7 +3,7 @@
   <PromoCarousel />
 
   <!-- Payment How-To Section -->
-  <div class="card pay-steps">
+  <div class="card pay-steps reveal">
     <h2 class="pay-title">Akses Konten Premium dalam 3 Langkah Mudah</h2>
     <div class="pay-row">
       <div class="pay-left">
@@ -87,7 +87,7 @@
   </div>
 
   <!-- Featured Tryouts (latest 3) -->
-  <section class="card featured-tryouts" v-if="tryoutsLatest.length">
+  <section class="card featured-tryouts reveal" v-if="tryoutsLatest.length">
     <div class="ft-head">
       <h2 class="ft-title-lg" style="margin:0;">Latest Tryouts</h2>
       <router-link to="/tryouts"><button class="see-all-btn">See all</button></router-link>
@@ -121,7 +121,7 @@
   </section>
 
   <!-- Head Categories (cards) -->
-  <section class="card head-cards" v-if="headCategories.length">
+  <section class="card head-cards reveal" v-if="headCategories.length">
     <h2 style="margin:0 0 10px;">Categories</h2>
     <div class="grid heads-grid" style="gap:16px;">
       <router-link v-for="h in headCategories" :key="h.id" class="head-card" :to="`/categories?headId=${h.id}`">
@@ -134,7 +134,7 @@
     </div>
   </section>
   <!-- Zoom Section -->
-  <section class="zoom-section card">
+  <section class="zoom-section card reveal">
       <div class="zoom-head">
         <h2 style="margin:0;">Zoom Discussion</h2>
       </div>
@@ -180,7 +180,7 @@
       </div>
       <div v-if="zoomCards.length===0" class="empty">Belum ada jadwal.</div>
     </section>
-    <section class="card tests-section">
+    <section class="card tests-section reveal">
       <div class="home-head">
         <h2 style="margin:0;">Pilihan Test Gratis Untukmu</h2>
         <div class="chips">
@@ -231,7 +231,7 @@
       </div>
     </section>
     <!-- FAQ Section -->
-    <section id="faq" class="card" style="margin-top:16px;">
+    <section id="faq" class="card reveal" style="margin-top:16px;">
       <div class="faq-wrap">
         <div class="faq-left">
           <div class="faq-title">Frequently Asked<br/>Questions</div>
@@ -250,7 +250,7 @@
       </div>
     </section>
     <!-- Testimonials (text-only slider) -->
-    <section class="card" style="margin-top:16px;">
+    <section class="card reveal" style="margin-top:16px;">
       <div class="testi-wrap">
         <div class="testi-head">
           <div class="testi-kicker">TESTIMONIAL</div>
@@ -391,6 +391,8 @@ onMounted(async () => {
     for (const s of arr){ questionCount.value[s.id] = Number(s.count || 0) }
   }))
   rebuildGrid()
+  // after async content lands, prepare reveals again
+  nextTick(() => setupReveals())
 })
 
 function selectCategory(id){
@@ -592,6 +594,36 @@ function measureFaqHeights(){
     return f.open ? el.scrollHeight + 12 : 0
   })
 }
+// IntersectionObserver for reveal-on-scroll
+let revealIO = null
+const revealedSet = new Set()
+function setupReveals(){
+  try{
+    const els = Array.from(document.querySelectorAll('.reveal'))
+    if (!revealIO){
+      revealIO = new IntersectionObserver((entries, obs) => {
+        for (const e of entries){
+          if (e.isIntersecting){
+            e.target.classList.add('in')
+            revealedSet.add(e.target)
+            obs.unobserve(e.target)
+          }
+        }
+      }, { threshold: 0.12, rootMargin: '0px 0px -5% 0px' })
+      window.__homeRevealIO = revealIO
+    }
+    els.forEach(el => {
+      if (!el.classList.contains('prep')) el.classList.add('prep')
+      if (!revealedSet.has(el)){
+        const r = el.getBoundingClientRect()
+        const inView = r.top < (window.innerHeight * 0.88) && r.bottom > 0
+        if (inView){ el.classList.add('in'); revealedSet.add(el) }
+        else revealIO.observe(el)
+      }
+    })
+  }catch{}
+}
+
 onMounted(() => {
   updatePerPage();
   updateZoomPerPage();
@@ -602,9 +634,16 @@ onMounted(() => {
     measureFaqHeights()
     const n = pageCount();
     if (testiIndex.value >= n) testiIndex.value = n - 1
+    // Setup and observe existing reveals
+    setupReveals()
   })
 })
-onUnmounted(() => { window.removeEventListener('resize', updatePerPage); window.removeEventListener('resize', updateZoomPerPage); stopAuto() })
+onUnmounted(() => {
+  window.removeEventListener('resize', updatePerPage);
+  window.removeEventListener('resize', updateZoomPerPage);
+  stopAuto();
+  try{ revealIO && revealIO.disconnect(); window.__homeRevealIO = null }catch{}
+})
 
 // helper: shorten and sanitize description for featured tryout card
 function shorten(html, maxLen = 140){
@@ -739,6 +778,16 @@ function descPreview(t){
 .date-badge{ font-size:12px; color:#0f172a; background:#fff; border:1px solid #e2e8f0; border-radius:999px; padding:2px 8px; }
 
 /* Header controls layout */
+
+/* Entrance reveal animation (only hide after JS marks as .prep) */
+.reveal.prep{ opacity:0; transform: translateY(20px); transition: opacity .9s ease, transform .9s ease; will-change: opacity, transform; }
+.reveal.prep.in{ opacity:1; transform: translateY(0); }
+.featured-tryouts.reveal.prep{ transform: translateY(28px); }
+.featured-tryouts.reveal.prep.in{ transform: translateY(0); }
+.zoom-section.reveal.prep{ transform: translateY(24px); }
+.tests-section.reveal.prep{ transform: translateY(24px); }
+.card.reveal.prep{ transition-delay: .05s; }
+.card.reveal.prep.in{ transition-delay: 0s; }
 .home-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .chips{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; border-bottom:1px solid #e5e7eb; padding-bottom:6px; }
 
