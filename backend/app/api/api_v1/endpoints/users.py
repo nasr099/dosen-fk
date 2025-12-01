@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from app.api.deps import get_current_active_user, get_current_admin_user
 from app.db.base import get_db
 from app.db.models import User as UserModel
@@ -155,6 +155,82 @@ def set_plan_bulk(payload: BulkPlanPayload, db: Session = Depends(get_db), admin
     for u in users:
         db.refresh(u)
     return users
+
+
+class BulkUserItem(BaseModel):
+    email: EmailStr
+    full_name: str
+    phone: Optional[str] = None
+
+
+class BulkCreateUsersPayload(BaseModel):
+    users: List[BulkUserItem]
+    password: str
+
+
+class BulkCreateSkippedItem(BaseModel):
+    email: EmailStr
+    reason: str
+
+
+class BulkCreateResponse(BaseModel):
+    created: List[UserSchema]
+    skipped: List[BulkCreateSkippedItem]
+
+
+@router.post("/bulk-create", response_model=BulkCreateResponse)
+def bulk_create_users(
+    payload: BulkCreateUsersPayload,
+    db: Session = Depends(get_db),
+    admin_user: UserModel = Depends(get_current_admin_user),
+):
+    password = (payload.password or "").strip()
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    created: List[UserSchema] = []
+    skipped: List[BulkCreateSkippedItem] = []
+
+    items = payload.users or []
+    if not items:
+        return BulkCreateResponse(created=[], skipped=[])
+
+    emails = [u.email for u in items]
+    existing_users = (
+        db.query(UserModel)
+        .filter(UserModel.email.in_(emails))
+        .all()
+    )
+    existing_by_email = {u.email.lower(): u for u in existing_users}
+
+    for item in items:
+        email_key = item.email.lower()
+        if email_key in existing_by_email:
+            skipped.append(BulkCreateSkippedItem(email=item.email, reason="Email already exists"))
+            continue
+
+        user = UserModel(
+            email=item.email,
+            full_name=item.full_name,
+            phone=item.phone,
+            hashed_password=get_password_hash(password),
+            is_active=False,
+            active_until=None,
+            plan="free",
+        )
+        db.add(user)
+        db.flush()
+        db.refresh(user)
+        existing_by_email[email_key] = user
+        created.append(user)
+
+    db.commit()
+
+    # refresh to ensure we return up-to-date data
+    for u in created:
+        db.refresh(u)
+
+    return BulkCreateResponse(created=created, skipped=skipped)
 
 # ---------------- Bulk Operations ----------------
 class IdsPayload(BaseModel):

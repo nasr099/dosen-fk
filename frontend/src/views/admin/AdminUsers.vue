@@ -19,6 +19,10 @@
         <option value="active_until_desc">Valid Until desc</option>
         <option value="active_until_asc">Valid Until asc</option>
       </select>
+      <div class="tabs">
+        <button type="button" class="tab-btn" :class="{ active: activeTab==='list' }" @click="activeTab='list'">User List</button>
+        <button type="button" class="tab-btn" :class="{ active: activeTab==='bulk' }" @click="activeTab='bulk'">Bulk Import</button>
+      </div>
       <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
         <select v-model.number="bulkMonths" class="input">
           <option v-for="m in monthsOptions" :key="m" :value="m">{{ m }} month{{ m>1? 's':'' }}</option>
@@ -27,7 +31,7 @@
         <button class="btn-sm gray" :disabled="selectedIds.length===0" @click="setPlanSelected('free')">Set Selected Free</button>
       </div>
     </div>
-    <div class="table-wrap">
+    <div v-if="activeTab==='list'" class="table-wrap">
     <table style="width:100%; border-collapse:collapse;">
       <thead>
         <tr>
@@ -95,6 +99,36 @@
       </tbody>
     </table>
     </div>
+
+    <div v-else class="bulk-card">
+      <div class="bulk-header">
+        <div>
+          <h3>Bulk Create Users</h3>
+          <p>Upload a CSV with columns <code>email,full_name,phone</code>. New accounts start on the Free plan and share the password you set.</p>
+        </div>
+        <button type="button" class="btn-sm gray bulk-template-btn" @click="downloadBulkTemplate">Download template CSV</button>
+      </div>
+      <div class="bulk-body">
+        <label class="bulk-field">
+          <span class="bulk-label">CSV file</span>
+          <input type="file" accept=".csv" @change="onBulkFileChange" />
+        </label>
+        <label class="bulk-field">
+          <span class="bulk-label">Initial password</span>
+          <input v-model="bulkPassword" type="password" placeholder="Min 8 characters" class="input" />
+        </label>
+        <div class="bulk-actions">
+          <button class="btn-sm" :disabled="!bulkFile || !bulkPassword || bulkLoading" @click="submitBulkCreate">
+            {{ bulkLoading ? 'Creating accounts…' : 'Create Accounts from CSV' }}
+          </button>
+        </div>
+        <div v-if="bulkError" class="bulk-error">{{ bulkError }}</div>
+        <div v-if="bulkResult" class="bulk-result">
+          <div v-if="bulkResult.created?.length">Created: {{ bulkResult.created.length }} user(s).</div>
+          <div v-if="bulkResult.skipped?.length">Skipped: {{ bulkResult.skipped.length }} ({{ bulkResult.skipped.map(x=>x.email).join(', ') }}).</div>
+        </div>
+      </div>
+    </div>
   </AdminLayout>
 </template>
 <script setup>
@@ -105,10 +139,16 @@ const users = ref([])
 const q = ref('')
 const filterAdmin = ref('all')
 const sortBy = ref('created_desc')
+const activeTab = ref('list')
 const selectedIds = ref([])
 const monthsOptions = [1,2,3,4,5,6,7,8,9,10,11,12]
 const monthsById = ref({})
 const bulkMonths = ref(1)
+const bulkFile = ref(null)
+const bulkPassword = ref('')
+const bulkLoading = ref(false)
+const bulkResult = ref(null)
+const bulkError = ref('')
 
 onMounted(async () => {
   const { data } = await api.get('/users/')
@@ -156,6 +196,80 @@ async function resetPassword(u){
   } catch (e) {
     alert('Failed to reset password')
   }
+}
+
+function onBulkFileChange(e){
+  const files = e.target.files || []
+  bulkFile.value = files.length ? files[0] : null
+  bulkResult.value = null
+  bulkError.value = ''
+}
+
+async function submitBulkCreate(){
+  if (!bulkFile.value || !bulkPassword.value) return
+  const pwd = String(bulkPassword.value || '').trim()
+  if (pwd.length < 8){
+    bulkError.value = 'Password must be at least 8 characters.'
+    return
+  }
+  bulkLoading.value = true
+  bulkError.value = ''
+  bulkResult.value = null
+  try {
+    const text = await bulkFile.value.text()
+    const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
+    if (!lines.length){
+      bulkError.value = 'CSV file is empty.'
+      bulkLoading.value = false
+      return
+    }
+    let startIndex = 0
+    const first = lines[0].toLowerCase()
+    if (first.includes('email') && first.includes('full') ){
+      startIndex = 1
+    }
+    const usersPayload = []
+    for (let i=startIndex; i<lines.length; i++){
+      const row = lines[i]
+      const parts = row.split(',')
+      if (parts.length < 2) continue
+      const email = String(parts[0] || '').trim()
+      const fullName = String(parts[1] || '').trim()
+      const phone = String(parts[2] || '').trim() || null
+      if (!email || !fullName) continue
+      usersPayload.push({ email, full_name: fullName, phone })
+    }
+    if (!usersPayload.length){
+      bulkError.value = 'No valid rows found. Expected columns: email,full_name,phone.'
+      bulkLoading.value = false
+      return
+    }
+    const { data } = await api.post('/users/bulk-create', {
+      users: usersPayload,
+      password: pwd,
+    })
+    bulkResult.value = data
+    await refresh()
+  } catch (e) {
+    bulkError.value = 'Failed to create users in bulk.'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+function downloadBulkTemplate(){
+  const header = 'email,full_name,phone\n'
+  const example = 'student1@example.com,Student One,+628123456789\nstudent2@example.com,Student Two,\n'
+  const csv = header + example
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'users_template.csv'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 async function generatePassword(u){
@@ -260,6 +374,91 @@ async function setPlanSelected(plan){
 thead .actions-col{ z-index:2; }
 
 .table-wrap{ overflow-x:auto; }
+
+.bulk-card{
+  margin-top:16px;
+  padding:14px 16px;
+  border-radius:12px;
+  border:1px solid #e2e8f0;
+  background:#f8fafc;
+  max-width:640px;
+}
+.bulk-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.bulk-header h3{
+  margin:0 0 4px;
+  font-size:14px;
+  font-weight:600;
+}
+.bulk-header p{
+  margin:0;
+  font-size:13px;
+  color:#64748b;
+}
+.bulk-template-btn{
+  padding:4px 10px;
+  font-size:12px;
+}
+.bulk-body{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.bulk-field{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:13px;
+}
+.bulk-label{
+  font-weight:500;
+  color:#0f172a;
+}
+.bulk-actions{
+  margin-top:4px;
+}
+.bulk-error{
+  font-size:13px;
+  color:#b91c1c;
+  white-space:pre-wrap;
+}
+.bulk-result{
+  font-size:13px;
+  color:#0f172a;
+  white-space:pre-wrap;
+}
+
+/* Tabs above table for switching between list and bulk import */
+.tabs{
+  display:flex;
+  gap:4px;
+}
+.tab-btn{
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid #e2e8f0;
+  background:#f8fafc;
+  font-size:12px;
+  font-weight:500;
+  color:#475569;
+  cursor:pointer;
+}
+.tab-btn.active{
+  background:#2563eb;
+  color:#fff;
+  border-color:#2563eb;
+}
+
+@media (max-width: 700px){
+  .bulk-card{ max-width:100%; }
+  .bulk-header{ flex-direction:column; align-items:flex-start; }
+  .bulk-template-btn{ align-self:flex-start; }
+}
 
 /* Make buttons compact and wrap nicely on narrow screens */
 @media (max-width: 900px){
