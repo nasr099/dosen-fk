@@ -60,6 +60,7 @@ def list_essays(
             ExamSession.id.label("session_id"),
             User.id.label("user_id"),
             User.email.label("user_email"),
+            User.full_name.label("user_full_name"),
             QuestionSet.id.label("set_id"),
             QuestionSet.title.label("set_title"),
             Question.id.label("question_id"),
@@ -82,6 +83,7 @@ def list_essays(
             TryoutSession.id.label("session_id"),
             User.id.label("user_id"),
             User.email.label("user_email"),
+            User.full_name.label("user_full_name"),
             QuestionSet.id.label("set_id"),
             QuestionSet.title.label("set_title"),
             Question.id.label("question_id"),
@@ -103,7 +105,11 @@ def list_essays(
             qry = qry.filter(QuestionSet.id == set_id)
         if q:
             like = f"%{q.strip()}%"
-            qry = qry.filter((Question.question_text.ilike(like)) | (User.email.ilike(like)))
+            qry = qry.filter(
+                (Question.question_text.ilike(like)) |
+                (User.email.ilike(like)) |
+                (User.full_name.ilike(like))
+            )
         if status == "graded":
             qry = qry.join(EssayGrade, EssayGrade.exam_answer_id == ExamAnswer.id)
         else:
@@ -117,7 +123,11 @@ def list_essays(
             qry = qry.filter(QuestionSet.id == set_id)
         if q:
             like = f"%{q.strip()}%"
-            qry = qry.filter((Question.question_text.ilike(like)) | (User.email.ilike(like)))
+            qry = qry.filter(
+                (Question.question_text.ilike(like)) |
+                (User.email.ilike(like)) |
+                (User.full_name.ilike(like))
+            )
         if status == "graded":
             qry = qry.join(EssayGrade, EssayGrade.tryout_answer_id == TryoutAnswer.id)
         else:
@@ -169,6 +179,7 @@ def list_essays(
             session_id=row.session_id,
             user_id=row.user_id,
             user_email=row.user_email,
+            user_full_name=getattr(row, 'user_full_name', None),
             set_id=row.set_id,
             set_title=row.set_title,
             question_id=row.question_id,

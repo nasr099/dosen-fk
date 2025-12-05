@@ -9,7 +9,11 @@
     </div>
     <div v-if="section==='tryouts'">
     <h3>Tryout Analytics</h3>
-    <div class="card" style="padding:12px;">
+    <div class="subtabs">
+      <button class="subtab" :class="{ active: tryoutTab==='sessions' }" @click="tryoutTab='sessions'">Sessions</button>
+      <button class="subtab" :class="{ active: tryoutTab==='results' }" @click="tryoutTab='results'">Results</button>
+    </div>
+    <div class="card" style="padding:12px;" v-if="tryoutTab==='sessions'">
       <form class="filters" @submit.prevent="applyTs">
         <select class="input" v-model.number="tryoutId" required>
           <option disabled :value="0">Select Tryout</option>
@@ -23,7 +27,8 @@
         <thead>
           <tr>
             <th>Session ID</th>
-            <th>User</th>
+            <th>Name</th>
+            <th>Email</th>
             <th>Status</th>
             <th>Started</th>
             <th>Finished</th>
@@ -33,13 +38,14 @@
         <tbody>
           <tr v-for="r in trows" :key="r.session_id">
             <td>{{ r.session_id }}</td>
-            <td>{{ r.user_email }}</td>
+            <td class="clamp-name">{{ r.user_full_name || '-' }}</td>
+            <td class="clamp-email">{{ r.user_email }}</td>
             <td>{{ r.status }}</td>
             <td>{{ fmt(r.started_at) }}</td>
             <td>{{ fmt(r.finished_at) }}</td>
             <td>{{ r.sets_finished }} / {{ r.sets_total }}</td>
           </tr>
-          <tr v-if="trows.length===0"><td colspan="6" class="muted">No sessions</td></tr>
+          <tr v-if="trows.length===0"><td colspan="7" class="muted">No sessions</td></tr>
         </tbody>
       </table>
       </div>
@@ -58,6 +64,105 @@
           <button class="btn small" :disabled="trows.length < tsPageSize" @click="toTsPage(tsPage+1)">Next</button>
         </div>
       </div>
+    </div>
+    <div class="card" style="padding:12px;" v-if="tryoutTab==='results'">
+      <form class="filters" @submit.prevent="applyTr">
+        <select class="input" v-model.number="tryoutId" required>
+          <option disabled :value="0">Select Tryout</option>
+          <option v-for="t in tryouts" :key="'rt-'+t.id" :value="t.id">{{ t.title }}</option>
+        </select>
+        <input class="input" v-model="trQ" placeholder="Search by name or email" />
+        <button class="btn small" type="submit">Apply</button>
+        <button class="btn small secondary" type="button" @click="exportTryoutResults">Export CSV</button>
+      </form>
+      <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Session ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Objective</th>
+            <th>Essay</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="r in tresults" :key="'res-'+r.session_id">
+            <tr>
+              <td>{{ r.session_id }}</td>
+              <td class="clamp-name">{{ r.user_full_name || '-' }}</td>
+              <td class="clamp-email">{{ r.user_email }}</td>
+              <td>{{ fmtPct(r.objective_score) }} ({{ r.objective_correct }}/{{ r.objective_total }})</td>
+              <td>{{ fmtPct(r.essay_avg_score) }} ({{ r.essay_graded_count }}/{{ r.essay_total }})</td>
+              <td>
+                <button class="btn tiny" type="button" @click="openEssayAnswers(r)">
+                  {{ showEssayModal && essaySessionId === r.session_id ? 'Hide answers' : 'View answers' }}
+                </button>
+              </td>
+            </tr>
+            <tr v-if="showEssayModal && essaySessionId === r.session_id" class="answers-row">
+              <td :colspan="6">
+                <div class="answers-panel">
+                  <h4>Answers – Session {{ essaySessionId }}</h4>
+                  <div class="table-wrap" style="max-height:400px; overflow:auto; margin-top:8px;">
+                    <h5 style="margin:0 0 4px;">Objective answers</h5>
+                    <table class="table small">
+                      <thead>
+                        <tr><th>Question</th><th>Type</th><th>Answer</th><th>Correct?</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="o in objectiveAnswers" :key="'obj-'+o.answer_id">
+                          <td class="clamp">{{ o.question_text }}</td>
+                          <td class="muted">{{ o.question_type }}</td>
+                          <td class="clamp">{{ o.answer_text }}</td>
+                          <td><span :style="{ color: o.is_correct ? '#16a34a' : '#dc2626', fontWeight: '600' }">{{ o.is_correct ? 'Yes' : 'No' }}</span></td>
+                        </tr>
+                        <tr v-if="objectiveAnswers.length===0"><td colspan="4" class="muted">No objective answers</td></tr>
+                      </tbody>
+                    </table>
+                    <h5 style="margin:12px 0 4px;">Essay answers</h5>
+                    <table class="table small">
+                      <thead>
+                        <tr><th>Question</th><th>Answer</th><th>Score</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="a in essayAnswers" :key="'ess-'+a.answer_id">
+                          <td class="clamp">{{ a.question_text }}</td>
+                          <td class="clamp">{{ a.answer_text }}</td>
+                          <td>{{ a.score ?? '-' }}</td>
+                        </tr>
+                        <tr v-if="essayAnswers.length===0"><td colspan="3" class="muted">No essay answers</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style="margin-top:8px; text-align:right;">
+                    <button class="btn small secondary" type="button" @click="closeEssayModal">Close</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <tr v-if="tresults.length===0"><td colspan="6" class="muted">No results</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="pager">
+        <div class="pager-left">
+          <label>Rows</label>
+          <select v-model.number="trPageSize" @change="toTrPage(1)">
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+          </select>
+        </div>
+        <div class="pager-right">
+          <button class="btn small secondary" :disabled="trPage<=1" @click="toTrPage(trPage-1)">Prev</button>
+          <span>Page {{ trPage }} • Total {{ trTotal }}</span>
+          <button class="btn small" :disabled="tresults.length < trPageSize" @click="toTrPage(trPage+1)">Next</button>
+        </div>
+      </div>
+
     </div>
     </div>
     <div v-if="section==='sets'">
@@ -272,6 +377,7 @@ import api from '../../api/client'
 import Chart from 'chart.js/auto'
 
 const section = ref('tryouts') // 'tryouts' | 'sets'
+const tryoutTab = ref('sessions') // 'sessions' | 'results'
 const tryouts = ref([])
 const tryoutId = ref(0)
 const tsQ = ref('')
@@ -279,6 +385,16 @@ const trows = ref([])
 const tsTotal = ref(0)
 const tsPage = ref(1)
 const tsPageSize = ref(20)
+
+const trQ = ref('')
+const tresults = ref([])
+const trTotal = ref(0)
+const trPage = ref(1)
+const trPageSize = ref(20)
+const showEssayModal = ref(false)
+const essayAnswers = ref([])
+const objectiveAnswers = ref([])
+const essaySessionId = ref(null)
 
 const sets = ref([])
 const rows = ref([])
@@ -312,6 +428,46 @@ async function loadTryoutSessions(){
 function toTsPage(p){ tsPage.value = Math.max(1, p); loadTryoutSessions() }
 function applyTs(){ tsPage.value = 1; loadTryoutSessions() }
 
+async function loadTryoutResults(){
+  if (!tryoutId.value) { tresults.value = []; trTotal.value = 0; return }
+  const params = { tryout_id: tryoutId.value, q: trQ.value, page: trPage.value, page_size: trPageSize.value }
+  const { data } = await api.get('/tryouts/analytics/tryout-results', { params })
+  trTotal.value = data.total
+  tresults.value = data.items
+}
+function toTrPage(p){ trPage.value = Math.max(1, p); loadTryoutResults() }
+function applyTr(){ trPage.value = 1; loadTryoutResults() }
+
+async function exportTryoutResults(){
+  if (!tryoutId.value) return
+  const params = { tryout_id: tryoutId.value }
+  if (trQ.value) params.q = trQ.value
+  const { data } = await api.get('/tryouts/analytics/tryout-results/export', { params, responseType: 'blob' })
+  const blob = new Blob([data], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = window.URL.createObjectURL(blob)
+  a.download = `tryout_${tryoutId.value}_results.csv`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+}
+
+async function openEssayAnswers(row){
+  // Toggle: if already open for this session, close it
+  if (showEssayModal.value && essaySessionId.value === row.session_id){
+    closeEssayModal()
+    return
+  }
+  essaySessionId.value = row.session_id
+  essayAnswers.value = []
+  objectiveAnswers.value = []
+  showEssayModal.value = true
+  const { data } = await api.get(`/tryouts/analytics/tryout-sessions/${row.session_id}/essay-answers`)
+  essayAnswers.value = data.essays || []
+  objectiveAnswers.value = data.objectives || []
+}
+function closeEssayModal(){ showEssayModal.value = false; essayAnswers.value = []; objectiveAnswers.value = []; essaySessionId.value = null }
+
 async function loadSets(){
   const { data } = await api.get('/analytics/sets')
   sets.value = data.items
@@ -341,7 +497,7 @@ async function exportCsv(){
   a.remove()
 }
 
-onMounted(async () => { await loadTryouts(); await loadTryoutSessions(); await loadSets(); await loadSessions() })
+onMounted(async () => { await loadTryouts(); await loadTryoutSessions(); await loadTryoutResults(); await loadSets(); await loadSessions() })
 
 // ---------- Charts ----------
 const trendRef = ref(null)
@@ -434,6 +590,10 @@ onMounted(loadInsights)
 .section-tabs{ display:flex; gap:12px; margin:4px 0 12px; border-bottom:1px solid #e5e7eb; }
 .section-tab{ padding:8px 12px; background:transparent; border:none; border-bottom:2px solid transparent; cursor:pointer; font-weight:700; color:#334155; }
 .section-tab.active{ color:#0f172a; border-bottom-color:#2563eb; }
+.subtabs{ display:inline-flex; gap:6px; padding:4px; margin:8px 0 4px; background:#f3f4f6; border-radius:999px; border:1px solid #e5e7eb; }
+.subtab{ padding:6px 14px; border-radius:999px; border:none; background:transparent; font-size:13px; cursor:pointer; color:#4b5563; font-weight:500; transition:background-color .15s ease,color .15s ease, box-shadow .15s ease; }
+.subtab:hover{ background:#e5e7eb; }
+.subtab.active{ background:#2563eb; color:#ffffff; box-shadow:0 1px 3px rgba(15,23,42,0.25); }
 .filters{ display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap; }
 .grid-2{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; align-items:start; }
 .grid-insights{ display:grid; grid-template-columns: 1fr; gap:16px; }
@@ -442,9 +602,13 @@ onMounted(loadInsights)
 .table{ width:100%; border-collapse:collapse; }
 .table th,.table td{ border-bottom:1px solid #e2e8f0; padding:8px 10px; text-align:left; vertical-align:top; word-break:break-word; }
 .table.small{ table-layout: fixed; }
-.table.small th,.table.small td{ font-size: 12px; padding:6px 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 1px; }
+.table small th,.table small td{ font-size: 12px; padding:6px 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 1px; }
 .clamp{ max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.clamp-name{ max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.clamp-email{ max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .table-wrap{ width:100%; overflow:auto; max-width:100%; }
+.answers-row > td{ background:#f9fafb; border-top:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; }
+.answers-panel{ padding:10px 4px 4px; }
 .pager{ display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; }
 .pager-left{ display:flex; align-items:center; gap:8px; }
 .pager-right{ display:flex; align-items:center; gap:8px; }

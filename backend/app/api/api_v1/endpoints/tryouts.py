@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from typing import List, Optional
+import io, csv
 from datetime import datetime, timedelta, timezone
 
 from app.api.deps import get_db, get_current_user, get_current_staff_user
@@ -116,6 +118,7 @@ def analytics_tryout_sessions(
         db.query(
             TryoutSessionModel.id.label('session_id'),
             UserModel.email.label('user_email'),
+            UserModel.full_name.label('user_full_name'),
             TryoutSessionModel.status,
             TryoutSessionModel.started_at,
             TryoutSessionModel.finished_at,
@@ -144,6 +147,7 @@ def analytics_tryout_sessions(
         items.append({
             'session_id': r.session_id,
             'user_email': r.user_email,
+            'user_full_name': getattr(r, 'user_full_name', None),
             'status': r.status,
             'started_at': r.started_at,
             'finished_at': r.finished_at,
@@ -151,6 +155,222 @@ def analytics_tryout_sessions(
             'sets_total': int(sets_total or 0),
         })
     return { 'total': total, 'items': items, 'sets_total': int(sets_total or 0) }
+
+@router.get('/analytics/tryout-results')
+def analytics_tryout_results(
+    tryout_id: int,
+    q: str = "",
+    page: int = 1,
+    page_size: int = 20,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_staff_user),
+):
+    page = max(1, int(page or 1)); page_size = max(1, min(int(page_size or 20), 100))
+    base = (
+        db.query(
+            TryoutSessionModel.id.label('session_id'),
+            UserModel.email.label('user_email'),
+            UserModel.full_name.label('user_full_name'),
+        )
+        .join(UserModel, UserModel.id == TryoutSessionModel.user_id)
+        .filter(TryoutSessionModel.tryout_id == tryout_id, TryoutSessionModel.status == 'finished')
+        .order_by(TryoutSessionModel.finished_at.desc().nullslast())
+    )
+    if q:
+        like = f"%{q.strip()}%"; base = base.filter((UserModel.email.ilike(like)) | (UserModel.full_name.ilike(like)))
+    total = base.count()
+    rows = base.offset((page-1)*page_size).limit(page_size).all()
+    sids = [r.session_id for r in rows]
+    obj_map = {}
+    essay_map = {}
+    if sids:
+        tss_rows = db.query(TryoutSetSessionModel.id, TryoutSetSessionModel.tryout_session_id).filter(TryoutSetSessionModel.tryout_session_id.in_(sids)).all()
+        tss_by_session = {}
+        for tss_id, sid in tss_rows:
+            tss_by_session.setdefault(sid, []).append(tss_id)
+        from app.db.models import EssayGrade as EssayGradeModel
+        for sid, tss_ids in tss_by_session.items():
+            obj_total = db.query(QuestionModel).join(TryoutSetModel, TryoutSetModel.question_set_id == QuestionModel.question_set_id).join(TryoutSetSessionModel, TryoutSetSessionModel.tryout_set_id == TryoutSetModel.id).filter(TryoutSetSessionModel.tryout_session_id == sid, QuestionModel.question_type.in_(["mcq", "multi", "short"])) .count()
+            obj_correct = db.query(TryoutAnswerModel).join(QuestionModel, TryoutAnswerModel.question_id == QuestionModel.id).join(TryoutSetSessionModel, TryoutAnswerModel.tryout_set_session_id == TryoutSetSessionModel.id).filter(TryoutSetSessionModel.tryout_session_id == sid, QuestionModel.question_type.in_(["mcq", "multi", "short"]), TryoutAnswerModel.is_correct == True).count()
+            obj_pct = (obj_correct / obj_total * 100.0) if obj_total else 0.0
+            obj_map[sid] = (obj_total, obj_correct, obj_pct)
+            essay_answer_ids_q = (
+                db.query(TryoutAnswerModel.id)
+                .join(TryoutSetSessionModel, TryoutAnswerModel.tryout_set_session_id == TryoutSetSessionModel.id)
+                .join(QuestionModel, TryoutAnswerModel.question_id == QuestionModel.id)
+                .filter(TryoutSetSessionModel.tryout_session_id == sid, QuestionModel.question_type == "essay")
+            )
+            essay_answer_ids = [row.id for row in essay_answer_ids_q.all()]
+            essay_total = db.query(QuestionModel).join(TryoutSetModel, TryoutSetModel.question_set_id == QuestionModel.question_set_id).join(TryoutSetSessionModel, TryoutSetSessionModel.tryout_set_id == TryoutSetModel.id).filter(TryoutSetSessionModel.tryout_session_id == sid, QuestionModel.question_type == "essay").count()
+            essay_answered = len(essay_answer_ids)
+            essay_graded = 0
+            essay_avg = 0.0
+            if essay_answer_ids:
+                grades = db.query(EssayGradeModel).filter(EssayGradeModel.tryout_answer_id.in_(essay_answer_ids)).all()
+                scores = [g.score for g in grades if g and g.score is not None]
+                missing = max(0, (essay_total or 0) - (essay_answered or 0))
+                essay_graded = len(scores) + missing
+                if essay_total:
+                    essay_avg = float(sum(scores)) / float(essay_total)
+            else:
+                essay_graded = essay_total
+                essay_avg = 0.0
+            essay_map[sid] = (essay_total, essay_graded, essay_avg)
+    items = []
+    for r in rows:
+        ot, oc, op = obj_map.get(r.session_id, (0, 0, 0.0))
+        et, eg, ea = essay_map.get(r.session_id, (0, 0, 0.0))
+        items.append({
+            'session_id': r.session_id,
+            'user_email': r.user_email,
+            'user_full_name': getattr(r, 'user_full_name', None),
+            'objective_total': int(ot or 0),
+            'objective_correct': int(oc or 0),
+            'objective_score': float(op or 0.0),
+            'essay_total': int(et or 0),
+            'essay_graded_count': int(eg or 0),
+            'essay_avg_score': float(ea or 0.0),
+        })
+    return { 'total': total, 'items': items }
+
+@router.get('/analytics/tryout-results/export')
+def export_tryout_results(
+    tryout_id: int,
+    q: str = "",
+    db: Session = Depends(get_db),
+    _=Depends(get_current_staff_user),
+):
+    base = (
+        db.query(
+            TryoutSessionModel.id.label('session_id'),
+            UserModel.email.label('user_email'),
+            UserModel.full_name.label('user_full_name'),
+        )
+        .join(UserModel, UserModel.id == TryoutSessionModel.user_id)
+        .filter(TryoutSessionModel.tryout_id == tryout_id, TryoutSessionModel.status == 'finished')
+        .order_by(TryoutSessionModel.finished_at.desc().nullslast())
+    )
+    if q:
+        like = f"%{q.strip()}%"; base = base.filter((UserModel.email.ilike(like)) | (UserModel.full_name.ilike(like)))
+    rows = base.all()
+    sids = [r.session_id for r in rows]
+    obj_map = {}
+    essay_map = {}
+    if sids:
+        tss_rows = db.query(TryoutSetSessionModel.id, TryoutSetSessionModel.tryout_session_id).filter(TryoutSetSessionModel.tryout_session_id.in_(sids)).all()
+        from app.db.models import EssayGrade as EssayGradeModel
+        for tss_id, sid in tss_rows:
+            # Objective stats per session
+            obj_total = db.query(QuestionModel).join(TryoutSetModel, TryoutSetModel.question_set_id == QuestionModel.question_set_id).join(TryoutSetSessionModel, TryoutSetSessionModel.tryout_set_id == TryoutSetModel.id).filter(TryoutSetSessionModel.tryout_session_id == sid, QuestionModel.question_type.in_(["mcq", "multi", "short"])).count()
+            obj_correct = db.query(TryoutAnswerModel).join(QuestionModel, TryoutAnswerModel.question_id == QuestionModel.id).join(TryoutSetSessionModel, TryoutAnswerModel.tryout_set_session_id == TryoutSetSessionModel.id).filter(TryoutSetSessionModel.tryout_session_id == sid, QuestionModel.question_type.in_(["mcq", "multi", "short"]), TryoutAnswerModel.is_correct == True).count()
+            obj_pct = (obj_correct / obj_total * 100.0) if obj_total else 0.0
+            obj_map[sid] = (obj_total, obj_correct, obj_pct)
+            # Essay stats per session
+            essay_answer_ids_q = (
+                db.query(TryoutAnswerModel.id)
+                .join(TryoutSetSessionModel, TryoutAnswerModel.tryout_set_session_id == TryoutSetSessionModel.id)
+                .join(QuestionModel, TryoutAnswerModel.question_id == QuestionModel.id)
+                .filter(TryoutSetSessionModel.tryout_session_id == sid, QuestionModel.question_type == "essay")
+            )
+            essay_answer_ids = [row.id for row in essay_answer_ids_q.all()]
+            essay_total = db.query(QuestionModel).join(TryoutSetModel, TryoutSetModel.question_set_id == QuestionModel.question_set_id).join(TryoutSetSessionModel, TryoutSetSessionModel.tryout_set_id == TryoutSetModel.id).filter(TryoutSetSessionModel.tryout_session_id == sid, QuestionModel.question_type == "essay").count()
+            essay_graded = 0
+            essay_avg = 0.0
+            if essay_answer_ids:
+                grades = db.query(EssayGradeModel).filter(EssayGradeModel.tryout_answer_id.in_(essay_answer_ids)).all()
+                scores = [g.score for g in grades if g and g.score is not None]
+                essay_graded = len(scores)
+                if essay_total:
+                    essay_avg = float(sum(scores)) / float(essay_total)
+            essay_map[sid] = (essay_total, essay_graded, essay_avg)
+    # Build CSV
+    output = io.StringIO()
+    w = csv.writer(output)
+    w.writerow(["Session ID","Name","Email","Objective %","Objective Correct","Objective Total","Essay Avg %","Essay Graded"])
+    for r in rows:
+        ot, oc, op = obj_map.get(r.session_id, (0, 0, 0.0))
+        et, eg, ea = essay_map.get(r.session_id, (0, 0, 0.0))
+        w.writerow([
+            int(r.session_id),
+            getattr(r, 'user_full_name', '') or '',
+            r.user_email or '',
+            f"{float(op or 0.0):.2f}",
+            int(oc or 0),
+            int(ot or 0),
+            f"{float(ea or 0.0):.2f}",
+            int(eg or 0),
+        ])
+    output.seek(0)
+    filename = f"tryout_{tryout_id}_results.csv"
+    headers = {
+        "Content-Disposition": f"attachment; filename={filename}",
+        "Content-Type": "text/csv; charset=utf-8",
+    }
+    return StreamingResponse(iter([output.getvalue()]), headers=headers, media_type="text/csv")
+
+@router.get('/analytics/tryout-sessions/{session_id}/essay-answers')
+def analytics_tryout_essay_answers(
+    session_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_staff_user),
+):
+    sess = db.query(TryoutSessionModel).filter(TryoutSessionModel.id == session_id).first()
+    if not sess:
+        raise HTTPException(status_code=404, detail='Session not found')
+    from app.db.models import EssayGrade as EssayGradeModel
+    # Essay answers
+    eq = (
+        db.query(
+            TryoutAnswerModel.id.label('answer_id'),
+            QuestionModel.id.label('question_id'),
+            QuestionModel.question_text,
+            TryoutAnswerModel.selected_answer,
+            EssayGradeModel.score,
+        )
+        .join(TryoutSetSessionModel, TryoutAnswerModel.tryout_set_session_id == TryoutSetSessionModel.id)
+        .join(QuestionModel, TryoutAnswerModel.question_id == QuestionModel.id)
+        .outerjoin(EssayGradeModel, EssayGradeModel.tryout_answer_id == TryoutAnswerModel.id)
+        .filter(TryoutSetSessionModel.tryout_session_id == session_id, QuestionModel.question_type == 'essay')
+        .order_by(QuestionModel.id.asc())
+    )
+    essays = []
+    for r in eq.all():
+        essays.append({
+            'answer_id': r.answer_id,
+            'question_id': r.question_id,
+            'question_text': r.question_text,
+            'answer_text': r.selected_answer,
+            'score': r.score,
+        })
+    # Objective answers (mcq, multi, short)
+    oq = (
+        db.query(
+            TryoutAnswerModel.id.label('answer_id'),
+            QuestionModel.id.label('question_id'),
+            QuestionModel.question_text,
+            QuestionModel.question_type,
+            TryoutAnswerModel.selected_answer,
+            TryoutAnswerModel.is_correct,
+        )
+        .join(TryoutSetSessionModel, TryoutAnswerModel.tryout_set_session_id == TryoutSetSessionModel.id)
+        .join(QuestionModel, TryoutAnswerModel.question_id == QuestionModel.id)
+        .filter(
+            TryoutSetSessionModel.tryout_session_id == session_id,
+            QuestionModel.question_type.in_(['mcq', 'multi', 'short']),
+        )
+        .order_by(QuestionModel.id.asc())
+    )
+    objectives = []
+    for r in oq.all():
+        objectives.append({
+            'answer_id': r.answer_id,
+            'question_id': r.question_id,
+            'question_text': r.question_text,
+            'question_type': r.question_type,
+            'answer_text': r.selected_answer,
+            'is_correct': bool(r.is_correct),
+        })
+    return { 'essays': essays, 'objectives': objectives }
 
 @router.delete('/{tryout_id}')
 def delete_tryout(tryout_id: int, db: Session = Depends(get_db), _=Depends(get_current_staff_user)):

@@ -81,6 +81,7 @@ class EssayAnswerItem(BaseModel):
     session_id: int
     user_id: int
     user_email: str
+    user_full_name: Optional[str] = None
     set_id: Optional[int] = None
     set_title: Optional[str] = None
     question_id: int

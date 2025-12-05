@@ -22,11 +22,13 @@
     </form>
 
     <div v-if="rows.length===0" class="empty">No items</div>
-    <table v-else class="table">
+    <div v-else class="table-wrap">
+    <table class="table">
       <thead>
         <tr>
           <th>Completed</th>
-          <th>User</th>
+          <th>Name</th>
+          <th>Email</th>
           <th>Set</th>
           <th>Question</th>
           <th>Answer</th>
@@ -37,7 +39,8 @@
       <tbody>
         <tr v-for="it in rows" :key="it.answer_id">
           <td>{{ fmt(it.completed_at) }}</td>
-          <td>{{ it.user_email }}</td>
+          <td class="clamp-name">{{ it.user_full_name || '-' }}</td>
+          <td class="clamp-email">{{ it.user_email }}</td>
           <td>{{ it.set_title || '-' }}</td>
           <td class="clamp">{{ it.question_text }}</td>
           <td class="clamp">{{ it.user_answer }}</td>
@@ -49,6 +52,7 @@
         </tr>
       </tbody>
     </table>
+    </div>
     <div class="pager" v-if="rows.length">
       <div class="pager-left">
         <label>Rows</label>
@@ -192,9 +196,12 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 </script>
 <style scoped>
 .filters{ display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap; }
-.table{ width:100%; border-collapse:collapse; }
+.table-wrap{ width:100%; max-width:100%; overflow-x:auto; }
+.table{ width:100%; border-collapse:collapse; min-width:800px; }
 .table th,.table td{ border-bottom:1px solid #e2e8f0; padding:8px 10px; text-align:left; vertical-align:top; }
-.clamp{ max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.clamp{ max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.clamp-name{ max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.clamp-email{ max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .badge{ display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; background:#e2e8f0; }
 .badge.pending{ background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
 .badge.approved{ background:#dcfce7; color:#065f46; }
