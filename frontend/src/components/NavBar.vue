@@ -163,8 +163,12 @@ async function detectResume(){
     }
   }catch{}
   // Fallback: latest unfinished in history
+  if (!auth.token) return
   try{
-    const { data: sessions } = await api.get('/tryouts/sessions/history', { params: { limit: 10, offset: 0 } })
+    const { data: sessions } = await api.get(
+      '/tryouts/sessions/history',
+      { params: { limit: 10, offset: 0 }, skipAuthRedirect: true }
+    )
     const found = (sessions||[]).find(s => String(s.status||'') !== 'finished')
     if (found){
       try{
