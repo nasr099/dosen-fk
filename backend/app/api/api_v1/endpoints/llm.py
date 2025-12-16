@@ -78,6 +78,8 @@ def generate_questions_xlsx(
     difficulty: str = Query("mixed"),
     questions_per_chunk: int = Query(10, ge=1, le=50),
     max_pages: int = Query(30, ge=1, le=1000),
+    latexify: bool = Query(True),
+    language: str = Query("auto"),
     db: Session = Depends(get_db),
     _=Depends(get_current_staff_user),
 ):
@@ -121,13 +123,39 @@ def generate_questions_xlsx(
     except Exception:
         text = ""
 
+    if not (text or '').strip() or len((text or '').strip()) < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="PDF text extraction returned empty/too-short content. If this PDF is scanned (image-based), please use a text-based PDF or run OCR first.",
+        )
+
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+    def _detect_lang(t: str) -> str:
+        s = (t or '').lower()
+        if not s.strip():
+            return 'en'
+        id_hits = 0
+        for w in ['yang','dan','atau','dengan','untuk','pada','dari','sebagai','maka','jika','tidak','adalah','dalam','sehingga','karena','bukan','bahwa','apa','berapa','tentukan','pilih','jawaban']:
+            if f' {w} ' in f' {s} ':
+                id_hits += 1
+                if id_hits >= 3:
+                    return 'id'
+        return 'en'
+
+    lang = (language or 'auto').strip().lower()
+    if lang in ('auto', 'detect'):
+        lang = _detect_lang(text)
+    if lang not in ('id', 'en'):
+        lang = 'en'
+
     system = (
         "You are a question generation assistant. Produce diverse, unambiguous, well-structured questions. "
         "Use the provided document only to infer TOPIC and STYLE. "
         "Do NOT copy or paraphrase anything from the document. "
         "Generate subject-matter questions — never meta-questions about exams, questions, or assessment processes. "
-        "Return ONLY valid JSON, no commentary."
+        "Return ONLY valid JSON, no commentary. "
+        + ("Write ALL questions and explanations in Indonesian." if lang == 'id' else "Write ALL questions and explanations in English.")
     )
     headers = [
         'type','question_text','question_img',
@@ -141,6 +169,9 @@ def generate_questions_xlsx(
     ]
     user_prompt_template = """
 You are given a source document (below) for calibration only. Create approximately {count} brand-new subject-matter questions about '{topic}' at {difficulty} difficulty. If 'topic' is blank, infer a concise topic from the document and use that.
+
+Language requirement:
+- Write the questions and explanations in {lang_name}.
 
 Before generating, do this planning internally (do not output the plan):
 1) Detect 1–5 key sub-themes present in the document (e.g., FPB dan KPK, Aritmetika Sosial, dll.).
@@ -193,6 +224,35 @@ Source document (for calibration of topic/pattern only; do not copy):
     def chunk_text(s: str, size: int = 8000):
         s = s or ""
         return [ s[i:i+size] for i in range(0, len(s), size) ] or [""]
+
+    def _extract_json(text_value: str):
+        raw = (text_value or '').strip()
+        if not raw:
+            raise ValueError('empty model output')
+        # Prefer ```json fenced blocks if present
+        m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw, re.IGNORECASE)
+        candidate = (m.group(1).strip() if m else raw)
+        # Try strict parse (with mild cleanup for common model mistakes)
+        cleaned = candidate
+        cleaned = re.sub(r",\s*(\]|\})", r"\1", cleaned)  # trailing commas
+        cleaned = re.sub(r"\u0000", "", cleaned)
+        try:
+            return json.loads(cleaned)
+        except Exception:
+            pass
+        # Try to extract the first JSON object in the text
+        m2 = re.search(r"\{[\s\S]*?\}", candidate)
+        if m2:
+            piece = m2.group(0)
+            piece = re.sub(r",\s*(\]|\})", r"\1", piece)
+            return json.loads(piece)
+        # Try trailing object
+        m3 = re.search(r"\{[\s\S]*\}\s*$", candidate)
+        if m3:
+            piece = m3.group(0)
+            piece = re.sub(r",\s*(\]|\})", r"\1", piece)
+            return json.loads(piece)
+        raise ValueError('could not locate JSON object in model output')
 
     # 1) Deterministic regex-based extractor to avoid losing question stems
     import re
@@ -269,49 +329,85 @@ Source document (for calibration of topic/pattern only; do not copy):
 
     all_rows = parse_mcq_blocks(text)
     chunks = chunk_text(text)
-    # Determine per-chunk target
     per_chunk = max(1, min(int(questions_per_chunk or 10), 50))
     remaining = max(1, min(int(question_count or 20), 500))
-    for i, ch in enumerate(chunks):
+    max_rounds = max(1, (remaining + per_chunk - 1) // per_chunk) * max(1, len(chunks))
+    no_progress = 0
+    last_error = None
+    for i in range(int(max_rounds)):
         if remaining <= 0:
             break
+        ch = chunks[i % len(chunks)] if chunks else ""
         want = min(per_chunk, remaining)
-        user_prompt = user_prompt_template.format(count=want, topic=(topic or 'the material'), difficulty=difficulty, chunk_text=ch)
+        user_prompt = user_prompt_template.format(
+            count=want,
+            topic=(topic or 'the material'),
+            difficulty=difficulty,
+            chunk_text=ch,
+            lang_name=("Bahasa Indonesia" if lang == 'id' else "English"),
+        )
         try:
-            resp = client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.6,
-                messages=[
-                    {"role":"system","content":system},
-                    {"role":"user","content":user_prompt},
-                ],
-            )
+            try:
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    temperature=0.6,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role":"system","content":system},
+                        {"role":"user","content":user_prompt},
+                    ],
+                )
+            except TypeError:
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    temperature=0.6,
+                    messages=[
+                        {"role":"system","content":system},
+                        {"role":"user","content":user_prompt},
+                    ],
+                )
             content = (resp.choices[0].message.content or "").strip()
         except Exception as e:
-            # Skip this chunk on failure
+            last_error = f"OpenAI error: {type(e).__name__}: {e}"
+            no_progress += 1
+            if no_progress >= 3:
+                break
             continue
 
         try:
-            m = re.search(r"\{[\s\S]*\}\s*$", content)
-            blob = m.group(0) if m else content
-            data = json.loads(blob)
+            data = _extract_json(content)
             rows = list((data or {}).get('rows') or [])
-        except Exception:
+        except Exception as e:
+            last_error = f"Parse error: {type(e).__name__}: {e}"
             rows = []
-        # Append
+
+        before = len(all_rows)
         if isinstance(rows, list):
             for r in rows:
                 all_rows.append(r)
                 if len(all_rows) >= question_count:
                     break
+        after = len(all_rows)
+        if after <= before:
+            no_progress += 1
+        else:
+            no_progress = 0
+        if no_progress >= 3:
+            break
         remaining = question_count - len(all_rows)
 
     if not all_rows:
-        raise HTTPException(status_code=400, detail="No rows generated by LLM")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No rows generated by LLM. "
+                + (f"Last error: {last_error}" if last_error else "")
+            ).strip(),
+        )
 
     # Optional post-filter: remove obvious meta-questions
     # Optional post-pass to convert math to LaTeX without changing other text
-    if latexify and client and all_rows:
+    if bool(latexify) and client and all_rows:
         try:
             prompt = {
                 "role": "user",
@@ -340,9 +436,14 @@ Source document (for calibration of topic/pattern only; do not copy):
             pass
 
     wb = Workbook(); ws = wb.active; ws.title = "questions"; ws.append(headers)
+    from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
     def get(d, k):
         v = d.get(k, "")
-        return "" if v is None else str(v)
+        if v is None:
+            return ""
+        s = str(v)
+        # OpenPyXL rejects certain control chars (0x00-0x1F excluding \t\n\r)
+        return ILLEGAL_CHARACTERS_RE.sub("", s)
     import re as _re
     meta_pattern = _re.compile(r"\b(question|questions|assessment|assessments|generate|generating|exam|test|testing)\b", _re.IGNORECASE)
     filtered_rows = [r for r in all_rows if not meta_pattern.search(str(r.get('question_text','')))] or all_rows
