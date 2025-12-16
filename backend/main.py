@@ -21,10 +21,14 @@ if isinstance(origins, str):
     else:
         origins = [o.strip() for o in origins.split(",") if o.strip()]
 
+allow_credentials = True
+if origins == ["*"]:
+    allow_credentials = False
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins or ["*"],
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

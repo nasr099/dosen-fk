@@ -87,7 +87,25 @@ async function generate(){
     const a = document.createElement('a'); a.href = url; a.download = 'llm_generated_questions.xlsx'
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
   }catch(e){
-    error.value = e?.response?.data?.detail || e.message || 'Failed to generate Excel'
+    // When using responseType:'blob', FastAPI error responses may come back as a Blob.
+    // Decode it so we can show the real error detail.
+    try{
+      const r = e?.response
+      const d = r?.data
+      if (d instanceof Blob){
+        const txt = await d.text()
+        try{
+          const j = JSON.parse(txt)
+          error.value = j?.detail || txt || 'Failed to generate Excel'
+        } catch {
+          error.value = txt || 'Failed to generate Excel'
+        }
+      } else {
+        error.value = r?.data?.detail || e.message || 'Failed to generate Excel'
+      }
+    } catch {
+      error.value = e?.response?.data?.detail || e.message || 'Failed to generate Excel'
+    }
   }finally{ loading.value = false }
 }
 </script>
