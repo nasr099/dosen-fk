@@ -208,6 +208,15 @@ const timeLimitInitial = ref(60)
 let timer = null
 const lightboxUrl = ref('')
 const currentIndex = ref(0)
+
+// Ensure question always starts at top after any navigation (including programmatic index changes)
+watch(currentIndex, async () => {
+  await nextTick()
+  requestAnimationFrame(() => {
+    scrollActiveQuestionToTop()
+    setTimeout(scrollActiveQuestionToTop, 0)
+  })
+})
 const flagged = ref({})
 const currentQuestionId = computed(() => questions.value[currentIndex.value]?.id)
 const answeredCount = computed(() => Object.values(answers.value).filter(Boolean).length)
@@ -370,6 +379,20 @@ function renderMathDOM(rootEl){
   }
 }
 
+function scrollActiveQuestionToTop(){
+  try{
+    try{ window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }catch{}
+    const el = document.getElementById(`qcard-${currentIndex.value}`)
+    if (el && el.scrollIntoView){
+      el.scrollIntoView({ behavior: 'auto', block: 'start', inline: 'nearest' })
+    } else {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+  } catch {
+    try{ window.scrollTo(0,0) }catch{}
+  }
+}
+
 function openLightbox(url){ lightboxUrl.value = url }
 function closeLightbox(){ lightboxUrl.value = '' }
 
@@ -377,20 +400,32 @@ function prev(){
   if (currentIndex.value > 0){
     currentIndex.value--
     ensureFullscreen()
-    nextTick(() => requestAnimationFrame(() => renderMathDOM()))
+    nextTick(() => requestAnimationFrame(() => {
+      scrollActiveQuestionToTop();
+      renderMathDOM();
+      setTimeout(scrollActiveQuestionToTop, 0)
+    }))
   }
 }
 function next(){
   if (currentIndex.value < questions.value.length-1){
     currentIndex.value++
     ensureFullscreen()
-    nextTick(() => requestAnimationFrame(() => renderMathDOM()))
+    nextTick(() => requestAnimationFrame(() => {
+      scrollActiveQuestionToTop();
+      renderMathDOM();
+      setTimeout(scrollActiveQuestionToTop, 0)
+    }))
   }
 }
 function go(i){
   currentIndex.value = i
   ensureFullscreen()
-  nextTick(() => requestAnimationFrame(() => renderMathDOM()))
+  nextTick(() => requestAnimationFrame(() => {
+    scrollActiveQuestionToTop();
+    renderMathDOM();
+    setTimeout(scrollActiveQuestionToTop, 0)
+  }))
 }
 function toggleFlag(qid){
   flagged.value[qid] = !flagged.value[qid]
@@ -629,7 +664,7 @@ onMounted(async () => {
 .guard-bar .dot.ok{ background:#10b981; }
 .guard-bar .dot.warn{ background:#f59e0b; }
 .exam-body{ display:grid; grid-template-columns: 2fr 0.9fr; gap:16px; align-items:start; }
-.left{ display:flex; flex-direction:column; gap:12px; }
+.left{ display:flex; flex-direction:column; gap:0; }
 .progress-wrap{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px; }
 .grid{ display:grid; gap:8px; }
 .grid.compact{ grid-template-columns: repeat(5, 1fr); }
@@ -680,7 +715,7 @@ onMounted(async () => {
 .opt-content > span:first-child{ display:block; white-space:normal; word-break:break-word; }
 .options.grid-2{ display:grid; grid-template-columns: 1fr; row-gap:16px; }
 .essay-input{ width:100%; min-height:140px; padding:12px 14px; border:1px solid #e2e8f0; border-radius:10px; font: inherit; line-height:1.7; }
-.nav-row{ display:flex; justify-content:space-between; gap:8px; }
+.nav-row{ display:flex; justify-content:space-between; gap:8px; margin-top: 12px; }
 .btn.warn{ background:#f59e0b; color:white; border:none; }
 .q-img { max-width: 100%; max-height: 240px; width: auto; height: auto; margin:10px auto 2px; display:block; border-radius:8px; cursor: zoom-in; object-fit: contain; }
 .opt-img { max-width: 220px; max-height: 160px; width: auto; height: auto; border-radius:8px; cursor: zoom-in; object-fit: contain; }

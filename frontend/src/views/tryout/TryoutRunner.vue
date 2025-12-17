@@ -373,6 +373,20 @@ function renderMathDOM(){
   } catch {}
 }
 
+function scrollActiveQuestionToTop(){
+  try{
+    try{ window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }catch{}
+    const el = document.getElementById(`qcard-${idx.value}`)
+    if (el && el.scrollIntoView){
+      el.scrollIntoView({ behavior: 'auto', block: 'start', inline: 'nearest' })
+    } else {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+  } catch {
+    try{ window.scrollTo(0,0) }catch{}
+  }
+}
+
 async function choose(qid, L){
   localAnswers.value[qid] = L
   try { await api.post(`/tryouts/set-sessions/${tssId.value}/answer`, null, { params: { question_id: qid, selected_answer: L } }) } catch(e){ if(e?.response?.status===409){ handleDeviceMismatch(e); return } throw e }
@@ -410,20 +424,32 @@ function prev(){
   ensureFullscreenOnAction()
   if (idx.value>0){
     idx.value--
-    nextTick(()=> requestAnimationFrame(()=> renderMathDOM()))
+    nextTick(()=> requestAnimationFrame(()=> {
+      scrollActiveQuestionToTop();
+      renderMathDOM();
+      setTimeout(scrollActiveQuestionToTop, 0)
+    }))
   }
 }
 function next(){
   ensureFullscreenOnAction()
   if (idx.value<questions.value.length-1){
     idx.value++
-    nextTick(()=> requestAnimationFrame(()=> renderMathDOM()))
+    nextTick(()=> requestAnimationFrame(()=> {
+      scrollActiveQuestionToTop();
+      renderMathDOM();
+      setTimeout(scrollActiveQuestionToTop, 0)
+    }))
   }
 }
 function go(i){
   ensureFullscreenOnAction()
   idx.value = i
-  nextTick(()=> requestAnimationFrame(()=> renderMathDOM()))
+  nextTick(()=> requestAnimationFrame(()=> {
+    scrollActiveQuestionToTop();
+    renderMathDOM();
+    setTimeout(scrollActiveQuestionToTop, 0)
+  }))
 }
 function toggleFlag(qid){ if (!qid) return; flagged.value[qid] = !flagged.value[qid] }
 function isFlagged(qid){ return !!flagged.value[qid] }
@@ -540,6 +566,15 @@ watch(phase, (p, prev) => {
   if (p === 'running') setupGuards(); else removeGuards()
 })
 
+// Ensure question always starts at top after any navigation (including programmatic idx changes)
+watch(idx, async () => {
+  await nextTick()
+  requestAnimationFrame(() => {
+    scrollActiveQuestionToTop()
+    setTimeout(scrollActiveQuestionToTop, 0)
+  })
+})
+
 // Reload only when the set changes while running
 watch(() => setMeta.value?.question_set_id, async (newId, oldId) => {
   if (phase.value === 'running' && newId && newId !== oldId){
@@ -577,8 +612,8 @@ function gotoLobby(){ router.push(`/tryout/${setMeta.value?.tryout_id || ''}`) }
 .intertext :deep(img), .desc :deep(img){ max-width:100%; border-radius:8px; display:block; margin:8px auto; }
 .count{ font-size:28px; font-weight:900; margin-top:8px; }
 .exam-body{ display:grid; grid-template-columns: 2fr 0.9fr; gap:16px; align-items:start; }
-.left{ display:flex; flex-direction:column; gap:12px; }
-.question-card{ background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
+.left{ display:flex; flex-direction:column; gap:0; }
+.question-card{ background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; scroll-margin-top: calc(var(--header-h) + 12px); }
 .q-top{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background: linear-gradient(90deg, #4f46e5, #6366f1); color:white; }
 .q-top-left .pill.strong{ background:rgba(255,255,255,.2); color:#fff; border-radius:10px; padding:4px 10px; font-weight:800; }
 .q-top-left .of{ margin-left:8px; opacity:.9; }
@@ -596,7 +631,7 @@ function gotoLobby(){ router.push(`/tryout/${setMeta.value?.tryout_id || ''}`) }
 .q-img{ max-width:100%; max-height:240px; border-radius:8px; display:block; margin:6px auto; cursor: zoom-in; }
 .opt-img{ max-width:220px; max-height:160px; border-radius:8px; cursor: zoom-in; }
 .essay-input{ width:100%; min-height:140px; padding:12px 14px; border:1px solid #e2e8f0; border-radius:10px; font: inherit; line-height:1.7; }
-.nav-row{ display:flex; gap:8px; justify-content:space-between; }
+.nav-row{ display:flex; gap:8px; justify-content:space-between; margin-top:12px; }
 .btn.warn{ background:#f59e0b; color:#fff; }
 .muted{ color:#64748b }
 .reading-card{ margin:12px 12px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; box-shadow: 0 6px 16px rgba(2,6,23,0.05); overflow:hidden; position: sticky; top: 0; z-index: 2; }
