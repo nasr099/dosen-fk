@@ -1,6 +1,5 @@
 <template>
-  <!-- Top Banner -->
-  <PromoCarousel />
+ 
 
   <!-- Contact Section -->
   <div class="contact-section">
