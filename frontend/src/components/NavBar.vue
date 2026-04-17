@@ -1,10 +1,7 @@
 <template>
   <header class="site-header">
     <div class="container-fluid navbar">
-      <router-link to="/" class="brand-link">
-        <img :src="logoSrc" alt="logo" class="brand-logo" />
-        <span class="brand-text">MedExam</span>
-      </router-link>
+
 
       <nav class="links">
         <router-link to="/">Home</router-link>
