@@ -3,7 +3,6 @@
     <img class="illus left" :src="leftImg" alt="left" />
     <div class="panel card">
       <div class="brand">
-        <img :src="logoImg" alt="logo" class="logo" />
         <h2>Login</h2>
       </div>
       <form @submit.prevent="submit" class="form">
