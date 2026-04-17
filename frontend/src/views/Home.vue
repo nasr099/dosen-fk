@@ -4,7 +4,7 @@
 
   <!-- Payment How-To Section -->
   <div class="card pay-steps reveal">
-    <h2 class="pay-title">Akses Konten Premium dalam 3 Langkah Mudah</h2>
+    <h2 class="pay-title">Akses Konten Premium dalam 3 Langkah Mudah!</h2>
     <div class="pay-row">
       <div class="pay-left">
         <template v-if="premiumImg">
