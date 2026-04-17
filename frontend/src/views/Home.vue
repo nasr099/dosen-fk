@@ -2,283 +2,20 @@
   <!-- Top Banner -->
   <PromoCarousel />
 
-  <!-- Payment How-To Section -->
-  <div class="card pay-steps reveal">
-    <h2 class="pay-title">Akses Konten Premium dalam 3 Langkah Mudah!</h2>
-    <div class="pay-row">
-      <div class="pay-left">
-        <template v-if="premiumImg">
-          <img :src="premiumImg" alt="medical team" class="pay-hero" />
-        </template>
-        <template v-else>
-          <!-- lightweight fallback illustration -->
-          <svg class="pay-hero-svg" viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect width="100%" height="100%" rx="14" fill="#f0f7ff"/>
-            <circle cx="120" cy="190" r="52" fill="#1f2937"/>
-            <rect x="72" y="240" width="96" height="48" rx="18" fill="#ffffff" stroke="#c7d2fe"/>
-            <circle cx="260" cy="190" r="52" fill="#1f2937"/>
-            <rect x="212" y="240" width="96" height="48" rx="18" fill="#ffffff" stroke="#c7d2fe"/>
-            <circle cx="400" cy="190" r="52" fill="#1f2937"/>
-            <rect x="352" y="240" width="96" height="48" rx="18" fill="#ffffff" stroke="#c7d2fe"/>
-            <circle cx="540" cy="190" r="52" fill="#1f2937"/>
-            <rect x="492" y="240" width="96" height="48" rx="18" fill="#ffffff" stroke="#c7d2fe"/>
-          </svg>
-        </template>
-      </div>
-      <div class="pay-right">
-        <div class="steps">
-          <div
-            class="step collapsible"
-            :class="{ open: isOpen(1) }"
-            @click="toggleStep(1)"
-            role="button"
-            tabindex="0"
-            @keydown.enter.prevent="toggleStep(1)" @keydown.space.prevent="toggleStep(1)"
-          >
-            <div class="step-toggle header-btn" :aria-expanded="isOpen(1)">
-              <div class="step-head">1. Hubungi Admin via WhatsApp</div>
-            </div>
-            <transition name="expand">
-              <div class="step-desc-wrap" v-if="isOpen(1)">
-                <div class="step-desc">Klik tombol di bawah dan sampaikan paket yang Anda inginkan.</div>
-              </div>
-            </transition>
-          </div>
-          <div
-            class="step collapsible"
-            :class="{ open: isOpen(2) }"
-            @click="toggleStep(2)"
-            role="button"
-            tabindex="0"
-            @keydown.enter.prevent="toggleStep(2)" @keydown.space.prevent="toggleStep(2)"
-          >
-            <div class="step-toggle header-btn" :aria-expanded="isOpen(2)">
-              <div class="step-head">2. Lakukan Pembayaran</div>
-            </div>
-            <transition name="expand">
-              <div class="step-desc-wrap" v-if="isOpen(2)">
-                <div class="step-desc">Admin akan mengirimkan link pembayaran Resmi. Selesaikan pembayaran Anda melalui link tersebut.</div>
-              </div>
-            </transition>
-          </div>
-          <div
-            class="step collapsible"
-            :class="{ open: isOpen(3) }"
-            @click="toggleStep(3)"
-            role="button"
-            tabindex="0"
-            @keydown.enter.prevent="toggleStep(3)" @keydown.space.prevent="toggleStep(3)"
-          >
-            <div class="step-toggle header-btn" :aria-expanded="isOpen(3)">
-              <div class="step-head">3. Aktivasi Akun</div>
-            </div>
-            <transition name="expand">
-              <div class="step-desc-wrap" v-if="isOpen(3)">
-                <div class="step-desc">Admin mengkonfirmasi pembayaran Anda. Akun Anda langsung diaktifkan! Akses konten premium sekarang.</div>
-              </div>
-            </transition>
-          </div>
-        </div>
-        <div class="pay-cta">
-          <a class="btn upgrade" :href="whatsLink" target="_blank" rel="noopener noreferrer">Upgrade Akun</a>
-        </div>
+  <!-- Contact Section -->
+  <div class="contact-section">
+    <div class="contact-content">
+      <h1 class="school-title">CBT-Sekolah Roudlotul Ulum</h1>
+      <div class="contact-info">
+        <h2>Kontak:</h2>
+        <a class="whatsapp-link" :href="whatsappContactLink" target="_blank" rel="noopener noreferrer">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" class="whatsapp-icon" />
+          <span>089681315028</span>
+        </a>
       </div>
     </div>
   </div>
 
-  <!-- Featured Tryouts (latest 3) -->
-  <section class="card featured-tryouts reveal" v-if="tryoutsLatest.length">
-    <div class="ft-head">
-      <h2 class="ft-title-lg" style="margin:0;">Latest Tryouts</h2>
-      <router-link to="/tryouts"><button class="see-all-btn">See all</button></router-link>
-    </div>
-    <div class="ft-grid">
-      <div class="ft-card" v-for="t in tryoutsLatest" :key="t.id">
-        <div class="ft-top">
-          <span class="iconbubble">🩺</span>
-          <span
-            class="cat-badge"
-            v-if="t.category"
-            :style="{
-              color: catColor(t.category),
-              background: 'transparent',
-              borderColor: catColor(t.category)
-            }"
-          >{{ t.category }}</span>
-        </div>
-        <div class="ft-title" :title="t.title">{{ t.title }}</div>
-        <div class="ft-meta">
-          <span>{{ (t.sets_count||0) }} sets</span>
-          <span class="dot">•</span>
-          <span>{{ (t.duration_minutes||0) }} mins</span>
-        </div>
-        <div class="ft-desc line" v-if="descPreview(t)">{{ descPreview(t) }}</div>
-        <div class="ft-actions">
-          <router-link :to="`/tryout/${t.id}`"><button class="cta">Kerjakan Sekarang</button></router-link>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Head Categories (cards) -->
-  <section class="card head-cards reveal" v-if="headCategories.length">
-    <h2 style="margin:0 0 10px;">Categories</h2>
-    <div class="grid heads-grid" style="gap:16px;">
-      <router-link v-for="h in headCategories" :key="h.id" class="head-card" :to="`/categories?headId=${h.id}`">
-        <div class="banner-box">
-          <img v-if="h.banner_url || h.cover_url || h.image_url" class="banner" :src="resolveImg(h.banner_url || h.cover_url || h.image_url)" alt="banner" loading="lazy" />
-        </div>
-        <div class="head-title">{{ h.name }}</div>
-        <div class="head-desc">{{ h.description || '—' }}</div>
-      </router-link>
-    </div>
-  </section>
-  <!-- Zoom Section -->
-  <section class="zoom-section card reveal">
-      <div class="zoom-head">
-        <h2 style="margin:0;">Zoom Discussion</h2>
-      </div>
-      <div class="zoom-slider">
-        <button class="nav prev" @click="prevZoom">‹</button>
-        <div class="viewport">
-          <div class="track" :style="{ transform: `translateX(-${zoomIndex * 100}%)` }">
-            <div v-for="(page, pi) in zoomPages" :key="pi" class="slide">
-              <div class="zgrid" :style="{ '--cols': zoomPerPage }">
-                <template v-for="(c, i) in page" :key="i">
-                  <div v-if="c.type==='item'" class="zoom-card" @click="$router.push(`/zoom/${c.data.id}`)">
-                    <div class="thumb" v-if="c.data.image_url"><img :src="resolveImg(c.data.image_url)" alt="presenter" /></div>
-                    <div class="inner">
-                      <div class="row top"><span class="chip" :class="c.data.status==='Upcoming' ? 'up' : 'done'">{{ c.data.status }}</span><span class="date-badge">📅 {{ formatLocal(c.data.start_at) }}</span></div>
-                      <div
-                        class="cat-badge"
-                        v-if="c.data.category_id"
-                        :style="{
-                          background: 'transparent',
-                          color: bandColor(categoryName(c.data.category_id)),
-                          borderColor: bandColor(categoryName(c.data.category_id))
-                        }"
-                      >
-                        {{ categoryName(c.data.category_id) }}
-                      </div>
-                      <div class="title" :title="c.data.title">{{ c.data.title }}</div>
-                      <div class="presenter">{{ c.data.presenter_name }}</div>
-                      <div class="desc" v-if="c.data.description">{{ c.data.description }}</div>
-                    </div>
-                  </div>
-                  <div v-else class="zoom-card see-more">
-                    <div class="see-more-inner">
-                      <div class="see-title">Lihat lebih banyak diskusi</div>
-                      <router-link to="/zoom"><button class="see-all-btn orange">Lihat semua</button></router-link>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </div>
-        </div>
-        <button class="nav next" @click="nextZoom">›</button>
-      </div>
-      <div v-if="zoomCards.length===0" class="empty">Belum ada jadwal.</div>
-    </section>
-    <section class="card tests-section reveal">
-      <div class="home-head">
-        <h2 style="margin:0;">Pilihan Test Gratis Untukmu</h2>
-        <div class="chips">
-          <button v-for="c in headCategories" :key="c.id" class="pill outline" :class="{ active: selectedCategoryId === c.id }" :title="c.name" @click="selectCategory(c.id)"><span class="pill-label">{{ c.name }}</span></button>
-        </div>
-      </div>
-
-      <div class="program-panel">
-      <div class="search-sort">
-        <input v-model="homeSearch" class="input search" type="text" placeholder="Cari set..." />
-        <select v-model="homeSort" class="input">
-          <option value="recent">Terbaru</option>
-          <option value="oldest">Terdahulu</option>
-          <option value="az">Judul (A-Z)</option>
-          <option value="za">Judul (Z-A)</option>
-        </select>
-      </div>
-      <div class="grid cols-4 grid-spacious" style="margin-top:6px;">
-        <div v-for="item in homeDisplayed" :key="item.set.id" class="set-card">
-          <span class="color-dot" :style="{ background: bandColor(item.category.name) }"></span>
-          <span class="plan-badge" :class="(item.set.access_level||'free')==='paid' ? 'paid' : 'free'">
-            {{ (item.set.access_level||'free')==='paid' ? 'Paid' : 'Free' }}
-          </span>
-          <div class="content flex-1">
-            <div class="cat-line">
-              <template v-if="brandFor(item.category.id).icon_url">
-                <img :src="resolveImg(brandFor(item.category.id).icon_url)" alt="logo" class="badge-img" />
-              </template>
-              <template v-else>
-                <span class="badge-icon" :style="{ background: 'rgba(15,23,42,0.08)' }">{{ brandFor(item.category.id).icon || '🔥' }}</span>
-              </template>
-              <span class="cat-name" :title="item.category.name">{{ item.category.name }}</span>
-            </div>
-            <div class="title truncate" :title="item.set.title">{{ item.set.title }}</div>
-            <div class="meta">
-              <div class="row"><span class="icon">📄</span> <span>Pertanyaan : {{ (questionCount[item.set.id] ?? 0) }} item</span></div>
-              <div class="row"><span class="icon">⏱️</span> <span>Durasi: {{ item.set.time_limit_minutes }} Menit</span></div>
-            </div>
-            <router-link :to="{ name: 'set-overview', params: { setId: item.set.id } }">
-              <button class="cta">Simulasi Test</button>
-            </router-link>
-          </div>
-        </div>
-      </div>
-      <div class="see-all-wrap">
-        <router-link to="/categories"><button class="see-all-btn orange">Lihat semua</button></router-link>
-      </div>
-      </div>
-    </section>
-    <!-- FAQ Section -->
-    <section id="faq" class="card reveal" style="margin-top:16px;">
-      <div class="faq-wrap">
-        <div class="faq-left">
-          <div class="faq-title">Frequently Asked<br/>Questions</div>
-          <div class="faq-sub">Masih bingung atau ragu? Hubungi kami di nomor <strong>+6285234727303</strong></div>
-        </div>
-        <div class="faq-right">
-          <div v-for="(f, idx) in faqs" :key="idx" :class="['faq-item', { open: f.open }]" @click="toggleFaq(idx)">
-            <div class="faq-head">
-              <span class="faq-num">{{ (idx+1).toString().padStart(2,'0') }}</span>
-              <span class="faq-q">{{ f.q }}</span>
-              <span class="faq-icon">{{ f.open ? '▾' : '▸' }}</span>
-            </div>
-            <div class="faq-a" :style="{ maxHeight: faqHeights[idx] + 'px' }"><div class="faq-a-inner" :ref="el => setFaqInnerRef(idx, el)">{{ f.a }}</div></div>
-          </div>
-        </div>
-      </div>
-    </section>
-    <!-- Testimonials (text-only slider) -->
-    <section class="card reveal" style="margin-top:16px;">
-      <div class="testi-wrap">
-        <div class="testi-head">
-          <div class="testi-kicker">TESTIMONIAL</div>
-          <div class="testi-title">Apa kata yang sudah bergabung</div>
-          <div class="testi-sub">Banyak peserta puas dengan materi yang kami tawarkan</div>
-        </div>
-        <div class="testi-slider" @mouseenter="pauseAuto()" @mouseleave="resumeAuto()">
-          <button class="nav prev" @click="prevTesti">‹</button>
-          <div class="viewport">
-            <div class="track" :style="{ transform: `translateX(-${testiIndex * 100}%)` }">
-              <div v-for="(page, pi) in testiPages" :key="pi" class="slide">
-                <div class="tgrid">
-                  <div v-for="(t, i) in page" :key="i" class="tcard">
-                    <div class="quote">“{{ t.text }}”</div>
-                    <div class="author">{{ t.author }}</div>
-                    <div class="meta">{{ t.meta }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <button class="nav next" @click="nextTesti">›</button>
-        </div>
-        <div class="dots">
-          <button v-for="(p,i) in testiPages" :key="i" :class="['dot', { active: i===testiIndex }]" @click="goTesti(i)"></button>
-        </div>
-      </div>
-    </section>
 </template>
 <script setup>
 import { onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
@@ -286,7 +23,7 @@ import PromoCarousel from '../components/PromoCarousel.vue'
 import api from '../api/client'
 import { buildWaLink } from '../config/whatsapp'
 
-const whatsLink = buildWaLink('Halo Admin, saya ingin upgrade akun premium.')
+const whatsappContactLink = buildWaLink('Halo, saya tertarik dengan CBT-Sekolah Roudlotul Ulum.')
 // Featured tryouts (latest 3)
 const tryoutsLatest = ref([])
 const premiumImg = ref('https://medexam-assets-prod.sgp1.cdn.digitaloceanspaces.com/uploads/Gemini_Generated_Image_p2452ep2452ep245.png')
@@ -693,73 +430,83 @@ function descPreview(t){
 
 <style scoped>
 
-/* Categories: horizontal cards aligned like CategoryHeads.vue */
-.grid.heads-grid { display: grid; }
-
-/* If you want a single column of wide, horizontal cards instead of 3 columns: */
-.heads-grid { grid-template-columns: 1fr; }
-
-/* Keep banner aspect and spacing identical */
-.banner-box {
-  width: 100%;
-  aspect-ratio: 16/9;
-  background: #f1f5f9;
-  border-radius: 8px;
-  overflow: hidden;
+/* Contact Section Styles */
+.contact-section {
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin: 20px 0;
+  border-radius: 16px;
+  padding: 40px 20px;
 }
-.banner { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-/* Head categories cards (match CategoryHeads.vue) */
-.head-cards { margin: 16px 0; }
-.heads-grid { grid-template-columns: repeat(3, 1fr); }
-@media (max-width: 900px){ .heads-grid{ grid-template-columns: repeat(2,1fr); } }
-@media (max-width: 640px){ .heads-grid{ grid-template-columns: 1fr; } }
-.head-card {
-  cursor: pointer;
+.contact-content {
+  text-align: center;
+  color: white;
+  max-width: 600px;
+}
+
+.school-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 30px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.contact-info h2 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.whatsapp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 15px;
   background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
+  color: #25D366;
+  padding: 15px 30px;
+  border-radius: 50px;
   text-decoration: none;
-  color: inherit;
+  font-weight: 600;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
-.head-card:hover { box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
-.banner-box {
-  width: 100%;
-  aspect-ratio: 16/9;
-  background: #f1f5f9;
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+
+.whatsapp-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
 }
-.banner { width: 100%; height: 100%; object-fit: contain; display: block; }
-.head-title { font-weight: 800; color: #0f172a; font-size: 18px; line-height: 1.25; }
-.head-desc { color: #64748b; margin-top: 6px; font-size: 14px; }
-@media (max-width: 900px) { .heads-grid { grid-template-columns: repeat(2,1fr); } }
-@media (max-width: 640px) { .heads-grid { grid-template-columns: 1fr; } }
 
+.whatsapp-icon {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
 
-/* Override grid vertical margins for heads grid */
-.heads-grid > * + *{ margin-top: 0 !important; }
-
-/* Zoom section */
-.zoom-section{ overflow:hidden; }
-.zoom-slider{ position:relative; display:flex; align-items:center; gap:12px; padding:6px 0; }
-.zoom-slider .viewport{ overflow:hidden; width:100%; }
-.zoom-slider .track{ display:flex; transition: transform .35s ease; }
-.zoom-slider .slide{ min-width:100%; padding:14px 8px; }
-.zgrid{ display:grid; gap:12px; align-items:stretch; width:100%; grid-template-columns: repeat(var(--cols, 3), 1fr); }
-.zoom-card{ background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.05); width:100%; }
+@media (max-width: 768px) {
+  .school-title {
+    font-size: 2rem;
+  }
+  
+  .contact-section {
+    min-height: 300px;
+    padding: 30px 15px;
+  }
+  
+  .whatsapp-link {
+    font-size: 1rem;
+    padding: 12px 25px;
+  }
+  
+  .whatsapp-icon {
+    width: 25px;
+    height: 25px;
+  }
+}
 .zoom-card .thumb{ width:100%; height: 120px; background:#f1f5f9; }
 .zoom-card .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
 @media (max-width: 900px){ .zoom-card .thumb{ height: 100px; } }
