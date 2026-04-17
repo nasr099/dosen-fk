@@ -3,8 +3,6 @@
     <div class="container footer">
       <div class="col brand">
         <div class="brand-row">
-          <img :src="logoSrc" alt="logo" class="logo" />
-          <div class="title">{{ footer.company || 'MedExam' }}</div>
         </div>
         <p class="desc">{{ footer.tagline || 'Practice, learn, and ace your exams. Built for medical students and professionals.' }}</p>
         <ul class="contact">
@@ -56,12 +54,12 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 const logoSrc = ref('/logo.svg')
 const footer = ref({
-  company: 'MedExam',
-  tagline: 'Practice, learn, and ace your exams. Built for medical students and professionals.',
-  address: 'Surabaya, Indonesia',
-  phone: '+62 852-3472-7303',
-  email: 'medexamid@gmail.com',
-  version: 'v1.0.0',
+  company: 'CBT-RU',
+  tagline: 'Practice, learn, and ace your exams.',
+  address: 'Wonoayu, Sidoarjo, Jawa Timur',
+  phone: '+62 896-8131-5028',
+  email: 'sekolahroudlotululum@gmail.com',
+  version: '2026',
   // Only active links within the site
   program: [
     { label:'Categories', url:'/categories' },
