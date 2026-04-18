@@ -1,12 +1,12 @@
 <template>
   <div class="auth-wrap">
-    <img class="illus left" :src="leftImg" alt="left" />
     <div class="panel card">
       <div class="brand">
+      <h1>CBT - Sekolah Roudlotul Ulum</h1>
         <h2>Login</h2>
       </div>
       <form @submit.prevent="submit" class="form">
-        <label>Email</label>
+        <label>Username</label>
         <input v-model="email" type="email" class="input" required />
         <label>Password</label>
         <input v-model="password" type="password" class="input" required />
@@ -16,7 +16,6 @@
       </form>
       
     </div>
-    <img class="illus right" :src="rightImg" alt="right" />
 
     <!-- Inactive user modal -->
     <div v-if="showInactive" class="modal">
