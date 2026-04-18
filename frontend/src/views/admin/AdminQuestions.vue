@@ -21,7 +21,7 @@
           <label>Category</label>
           <select v-model="builder.category_id" class="input" required @change="loadBuilderSets">
             <option value="" disabled>Select category</option>
-            <option v-for="c in subCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
+            <option v-for="c in Categories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </div>
         <div class="row full"><label>Set Title</label><input v-model="builder.title" class="input" placeholder="e.g., Latihan Anatomi 2025 #3" /></div>
