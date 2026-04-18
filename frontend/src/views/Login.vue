@@ -2,7 +2,7 @@
   <div class="auth-wrap">
     <div class="panel card">
       <div class="brand">
-      <h1>CBT - Sekolah Roudlotul Ulum</h1>
+      <h1 style="font-size: 1.5em;">CBT - Sekolah Roudlotul Ulum</h1>
         <h2>Login</h2>
       </div>
       <form @submit.prevent="submit" class="form">
