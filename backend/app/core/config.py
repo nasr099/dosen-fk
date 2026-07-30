@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from typing import Optional, List, Union
 
 class Settings(BaseSettings):
@@ -10,8 +11,15 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql://username:password@localhost/medical_exam_db"
 
+    # Validator otomatis untuk mengubah 'postgres://' menjadi 'postgresql://'
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_db_connection(cls, v: str) -> str:
+        if isinstance(v, str) and v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql://", 1)
+        return v
+
     # CORS
-    # Comma-separated list or * for all
     CORS_ORIGINS: Union[str, List[str]] = "*"
     
     # Storage (DigitalOcean Spaces)
@@ -21,7 +29,7 @@ class Settings(BaseSettings):
     DO_SPACES_KEY: Optional[str] = None
     DO_SPACES_SECRET: Optional[str] = None
 
-    # Public CDN base (Spaces CDN or custom domain)
+    # Public CDN base
     PUBLIC_CDN_BASE: Optional[str] = None
     
     # Email settings
@@ -34,6 +42,11 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     
     # pydantic v2 settings config
-    model_config = SettingsConfigDict(env_file=".env", extra='ignore')
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8", 
+        extra='ignore',
+        case_sensitive=True # Memastikan nama variabel match dengan Environment Variable
+    )
 
 settings = Settings()
