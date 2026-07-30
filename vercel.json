@@ -1,42 +1,36 @@
 {
-  "services": {
-    "frontend": {
-      "root": "frontend",
-      "framework": "vite"
+  "builds": [
+    {
+      "src": "backend/api/index.py",
+      "use": "@vercel/python"
     },
-    "backend": {
-      "root": "backend",
-      "entrypoint": "api/index.py"
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
-  },
-  "rewrites": [
+  ],
+  "routes": [
     {
-      "source": "/api(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/api/(.*)",
+      "dest": "backend/api/index.py"
     },
     {
-      "source": "/docs",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/docs",
+      "dest": "backend/api/index.py"
     },
     {
-      "source": "/openapi.json",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/openapi.json",
+      "dest": "backend/api/index.py"
     },
     {
-      "source": "/:path*",
-      "destination": {
-        "type": "service",
-        "service": "frontend"
-      }
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
