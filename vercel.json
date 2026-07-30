@@ -32,11 +32,8 @@
       }
     },
     {
-      "source": "/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "frontend"
-      }
+      "source": "/((?!api/|docs|openapi.json).*)",
+      "destination": "/index.html"
     }
   ]
 }
